@@ -1,0 +1,10 @@
+[package]
+name = "zkrv32i"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "firmware"
+path = "src/bin/firmware.rs"
+test = false
+bench = false

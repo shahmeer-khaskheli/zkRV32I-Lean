@@ -1,0 +1,7 @@
+name = "zkrv32i"
+version = "0.1.0"
+defaultTargets = ["ZkRV32I"]
+
+[[lean_lib]]
+name = "ZkRV32I"
+srcDir = "formal"

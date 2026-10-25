@@ -1,0 +1,10 @@
+addi_x1_imm1|0|0|0|1048723|ok
+add_x3_x1_x2|0|7|9|2130355|ok
+beq_equal_taken|0|5|5|2130531|ok
+beq_unequal_not_taken|0|5|6|2130531|ok
+beq_misaligned_pc|2|5|5|2130531|fault
+lw_aligned|0|0|0|41347|ok
+lw_misaligned|0|2|0|41347|fault
+lw_out_of_bounds|0|64|0|41347|fault
+write_x0|0|5|6|2134067|ok
+illegal_zero_word|0|0|0|0|decode_error

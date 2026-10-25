@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.97.1
+
+      - name: Install Lean toolchain
+        uses: leanprover/lean-action@v1
+        with:
+          lean-version: leanprover/lean4:v4.19.0
+
+      - name: Check Lean source placeholders
+        run: |
+          bash scripts/check_no_sorry.sh
+          bash scripts/check_no_admit.sh
+          bash scripts/check_isa_coverage.sh
+
+      - name: Build Lean proofs
+        run: lake build
+
+      - name: Check Lean axiom policy
+        run: bash scripts/check_axiom_policy.sh
+
+      - name: Check Rust safety and allocation policies
+        run: |
+          bash scripts/check_no_unsafe.sh
+          bash scripts/check_alloc_policy.sh
+
+      - name: Check Rust workspace
+        run: cargo check --locked
+
+      - name: Run Rust tests
+        run: cargo test --locked
