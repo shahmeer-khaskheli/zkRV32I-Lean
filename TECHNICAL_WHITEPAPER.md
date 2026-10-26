@@ -1,302 +1,402 @@
-# A Lean and Rust Foundation for RV32I Modeling and ELF Loading
+# RV32I Semantics, ELF Loading, and Selected Refinement Results in Lean 4
 
 ## Abstract
 
-This paper describes the current `zkRV32I-Lean` repository as an engineering
-artifact, not as a claim of complete processor verification. The code contains
-a Lean 4 model of RV32I instruction decoding and state transitions, a
-`no_std`/`forbid(unsafe_code)` Rust reference implementation, Lean finite-memory
-refinement lemmas, a model-level step theorem, and an ELF32/RISC-V parser and
-loader. A linked bare-metal RISC-V ELF can be checked by a Lean runtime
-verification program for its header, loadable segments, entry placement, and
-entry instruction decode.
+This paper documents the current technical scope of `zkRV32I-Lean`, a Lean 4
+and Rust repository for modeling selected layers of a RISC-V 32-bit integer
+execution stack. The Lean development defines 32-bit values, registers,
+bounded memory operations, instruction decoding, a partial machine step,
+finite-memory correspondence, a Lean-transcribed Rust-shaped step model, an
+ELF32/RISC-V subset parser and loader, and a functional ALU datapath
+abstraction.
 
-The current proofs are machine checked by Lean 4.19.0 and the current Lean
-source scans contain no `sorry`, `admit`, or project-defined axiom
-declarations. The master refinement theorem depends on Lean's foundational
-axioms `propext` and `Quot.sound`. Most importantly, the theorem relates two
-Lean specifications; it is not a proof of Rust compiler correctness or
-equivalence between compiled Rust and the Lean machine. The ELF check evaluates
-a concrete file but is not a theorem about the compiler or the binary's full
-execution.
+The main model-level theorem equates the Lean finite-state step specification
+with Lean `step` for a matching instruction and aligned PC. A separate theorem
+establishes equality between a functional Lean ALU result path and Lean `step`
+for the ALU instruction subset. ELF runtime tooling checks a concrete
+artifact, executes one modeled binary step at its entry, and evaluates selected
+standalone model edge cases.
 
-## 1. Introduction and motivation
+These results are deliberately narrower than verified compilation or processor
+verification. The Rust source is not mechanically translated to the Lean
+source model. The compiler and linker are not verified. No RTL core is
+imported, and the functional ALU model is not a clocked microarchitecture. The
+circuit predicates are illustrative, not a cryptographic proof system.
+Current source scans find no `sorry`, `admit`, or project-defined axiom
+declarations; theorem axiom output includes Lean foundational dependencies,
+notably `propext` and `Quot.sound`.
 
-Systems software combines arithmetic, memory, control flow, and toolchain
-behavior. Formal models can make parts of that behavior explicit and allow
-theorem provers to check propositions about those definitions. In proof-system
-and zero-knowledge settings, a further obligation is to show that a
-constraint-system encoding faithfully represents the intended computation and
-that the proof system's verifier has the claimed soundness properties.
+## 1. Motivation and research question
 
-`zkRV32I-Lean` provides a small development setting for exploring these layers:
+An execution-verification stack contains distinct semantic boundaries:
 
-1. specify instruction decoding and machine steps in Lean;
-2. implement a safe, fixed-size Rust reference machine;
-3. state and prove correspondence properties between Lean definitions;
-4. parse and load a concrete RISC-V ELF into a formal byte-memory model; and
-5. distinguish the above from the still-missing link between actual compiled
-   Rust instructions and the Lean semantics.
+\[
+\text{source program}
+\to \text{compiler IR}
+\to \text{machine instructions}
+\to \text{loaded memory image}
+\to \text{architectural transitions}
+\to \text{hardware cycles}.
+\]
 
-The current circuit-related modules are illustrative and are not a
-zero-knowledge proof system. The project name and the presence of circuit
-predicates should not be taken as evidence of a deployed or cryptographically
-sound zkVM.
+Each arrow requires its own representation relation and correctness
+argument. Checking one layer does not discharge the obligations at adjacent
+layers. This repository provides a small experimental setting for formalizing
+some of these interfaces and for marking the remaining gaps precisely.
 
-## 2. Project components
+The research question represented by the current code is modest:
 
-### 2.1 Word, register, and memory definitions
+> What Lean-checkable properties can be stated about a word-level RV32I
+> machine model, its finite-memory representation, a subset ELF loading
+> function, and a functional ALU abstraction?
 
-In [`formal/ZkRV32I/Base.lean`](formal/ZkRV32I/Base.lean), `Word32` is an
-abbreviation for Lean `UInt32`. Helper definitions provide conversion,
-signed interpretation, sign extension, addition, and subtraction. The Lean
-`RegisterFile` stores a function from `Fin 32` to words. Reads of index zero
-return zero, writes to index zero return the old record, and the `x0` accessor
-itself is defined as constant zero.
+The repository does not currently answer the stronger question of whether a
+particular Rust program, compiled to a particular ELF, executes identically
+on a physical RISC-V implementation.
 
-Lean memory is a structure containing:
+## 2. Artifact identity and reproducible scope
 
-- a `Word32` base address;
-- a natural-number byte size; and
-- a total function from natural indices to `UInt8`.
+The pinned versions are Lean `leanprover/lean4:v4.19.0` and Rust
+`1.97.1`, with the Rust target `riscv32i-unknown-none-elf`. The root source
+tree contains:
 
-`Memory.validRange` checks alignment, nonzero width, base ordering, 32-bit end
-address bounds, and the memory-size bound. `load` and `store` are partial
-operations, returning `Option` to represent invalid access. Values are
-assembled and written little-endian.
+- `formal/ZkRV32I/Base.lean`, `ISA.lean`, `Machine.lean`, and `Trace.lean`;
+- `formal/ZkRV32I/Refinement/Memory.lean` and `Refinement/Step.lean`;
+- `formal/ZkRV32I/Source.lean`;
+- `formal/ZkRV32I/Binary.lean`;
+- `formal/ZkRV32I/Hardware/SingleCycle.lean`;
+- illustrative modules in `formal/ZkRV32I/Circuit/`;
+- a Rust reference library and a separate firmware fixture;
+- a runtime ELF verification script and source policy scans; and
+- a finite host-side differential harness and corpus.
 
-The fact that `RegisterFile.x0` is a constant accessor matters when
-interpreting its theorems: the zero-accessor properties do not prove a
-nontrivial invariant about an independently stored x0 cell.
+The firmware ELF under `target/` is a generated build artifact. It is not
+source-controlled evidence of a particular build unless accompanied by
+artifact hashes, compiler/linker provenance, and reproducible build records.
+The runtime script reads whichever file path it is given; its result applies
+to that invocation only.
 
-### 2.2 Instruction set and decoder
+## 3. Word, register, memory, and instruction definitions
 
-[`formal/ZkRV32I/ISA.lean`](formal/ZkRV32I/ISA.lean) defines constructors for
-the 40 instruction cases exercised by the repository's coverage script:
+### 3.1 Machine state
 
-- U-type and jumps: `LUI`, `AUIPC`, `JAL`, `JALR`;
-- conditional branches: `BEQ`, `BNE`, `BLT`, `BGE`, `BLTU`, `BGEU`;
-- loads: `LB`, `LH`, `LW`, `LBU`, `LHU`;
-- stores: `SB`, `SH`, `SW`;
-- immediate ALU and shifts: `ADDI`, `SLTI`, `SLTIU`, `XORI`, `ORI`, `ANDI`,
-  `SLLI`, `SRLI`, `SRAI`;
-- register ALU and shifts: `ADD`, `SUB`, `SLL`, `SLT`, `SLTU`, `XOR`, `SRL`,
-  `SRA`, `OR`, `AND`; and
-- system/control: `FENCE`, `ECALL`, `EBREAK`.
+`Base.lean` abbreviates `Word32` to Lean `UInt32`. The formal state in
+`Machine.lean` is:
 
-The Lean decoder extracts fields from the numeric word, reconstructs signed
-immediates, and returns either an instruction or a `DecodeError`. The B-type
-immediate implementation includes the standard bit-7-to-immediate-bit-11 and
-bit-31-to-sign-bit-12 weights with supporting lemmas. This does not amount to a
-formal proof that all decoding rules and reserved-field behavior match the
-complete RISC-V ISA specification for every possible 32-bit encoding.
+\[
+\sigma = (pc, regs, mem, \tau),
+\]
 
-Rust's decoder is implemented separately in
-[`rust/src/lib.rs`](rust/src/lib.rs). Its errors distinguish illegal from
-unsupported encodings. Both implementation presence and finite test cases are
-useful checks, but neither is a universal decoder-equivalence proof.
+where:
 
-### 2.3 Operational machine semantics
+- \(pc \in \mathbb{U}_{32}\);
+- `regs` is a function-indexed register structure over `Fin 32`;
+- memory has a 32-bit base \(b\), natural-number size \(n\), and a total byte
+  function; and
+- \(\tau\) is the model terminal tag `running` or `halted`.
 
-[`formal/ZkRV32I/Machine.lean`](formal/ZkRV32I/Machine.lean) defines a machine
-state with PC, registers, memory, and a running/halted terminal tag. `step`
-matches on an abstract `Instruction` and returns `Option MachineState`.
-Arithmetic uses `UInt32` operations; branches, jumps, loads, and stores update
-state according to the Lean definitions. `FENCE` advances sequentially without
-memory-ordering effects. `ECALL` and `EBREAK` set the terminal tag to halted.
-This model is not a concurrent or privilege-aware RISC-V implementation.
+Reads of register zero return zero; writes to index zero return the old
+register structure. The `x0` accessor itself is defined to return zero
+independently of the stored function. This representation choice makes some
+x0 theorems immediate properties of the accessor definition rather than
+nontrivial invariants over a physical cell.
 
-The Rust library represents memory using a const-generic fixed-size byte array,
-and Rust `step` takes ownership of a machine state and returns
-`Result<MachineState, ExecutionError>`. It checks terminal state, register
-indices, and PC alignment; memory operations can report out-of-bounds,
-misalignment, or address overflow. Rust and Lean therefore do not use
-identical fault representations, and correspondence of every fault category
-is not established by the successful-step master theorem.
+### 3.2 Memory validity
 
-### 2.4 Finite-memory relation and refinement theorem
+For address \(a\), width \(w\), alignment \(q\), base \(b\), and memory size
+\(n\), `Memory.validRange` checks:
 
-[`formal/ZkRV32I/Refinement/Memory.lean`](formal/ZkRV32I/Refinement/Memory.lean)
-defines `RustMemory size` using a `Fin size → UInt8` byte vector and a base
-address. Its `Refines` predicate requires equal bases, matching size, and
-equal bytes at in-range indices. The module proves conversion/refinement
-properties, load agreement, and store agreement between two Lean memory
-definitions.
+\[
+\begin{aligned}
+&(q \le 1) \lor (a \bmod q = 0),\\
+&w \ne 0,\quad b \le a,\\
+&a + w - 1 < 2^{32},\\
+&a-b+w \le n.
+\end{aligned}
+\]
 
-[`formal/ZkRV32I/Refinement/Step.lean`](formal/ZkRV32I/Refinement/Step.lean)
-defines `RustFiniteState`, a separate Lean datatype intended to model the
-finite Rust state. It also defines finite-step specifications and
-correspondence lemmas, culminating in
-`ZkRV32I.Refinement.master_end_to_end_refinement`. In simplified notation, the
-theorem states, for a finite state and abstract instruction with an aligned
-PC:
+The code uses natural-number calculations in the predicate, so the range
+checks themselves do not wrap. `Memory.load` and `Memory.store` are partial:
+they return `none` on a rejected range and otherwise use little-endian
+byte composition/update. These are model semantics. The independently
+implemented Rust `checked_offset` is not proven equivalent to this Lean
+predicate for all inputs by a theorem about Rust execution.
 
-```text
-rustFiniteStepSpec state (encodeInstruction instruction)
-  = step state.toLean instruction
-```
+### 3.3 Instruction syntax and decoder
 
-Both sides of this equation are Lean definitions. The theorem does not invoke
-Rust code, extract a Rust program, or reason about compiler output. Its name
-must therefore not be interpreted as a Rust-to-binary universal refinement
-result.
+`ISA.lean` provides constructors for the base RV32I operations represented in
+the project: U-type, jumps, conditional branches, loads, stores, immediate and
+register integer ALU operations, shifts, `FENCE`, `ECALL`, and `EBREAK`. It
+extracts word fields and reconstructs I-, S-, B-, and J-format immediates.
+The B-immediate helper and examples cover corrected bit weights, including
+the bit-7 contribution to immediate bit 11.
 
-### 2.5 Trace predicates
+The existence of constructors and examples is not a proof of full
+specification conformance. The repository does not contain a theorem proving
+the decoder's equivalence to the complete RISC-V encoding table over all
+\(2^{32}\) bit patterns, including every reserved field, extension, and
+illegal-versus-unsupported classification.
 
-[`formal/ZkRV32I/Trace.lean`](formal/ZkRV32I/Trace.lean) defines a finite
-`Trace` of `MachineState` values bounded by `MAX_TRACE = 2^20`. A valid trace is
-nonempty, begins in an initial state, and has adjacent rows related by
-`valid_transition`. That transition predicate existentially supplies an
-instruction whose Lean step reaches the next row.
+### 3.4 Partial machine operation
 
-The trace stores state rows, not instruction words or a fetch witness. In
-particular, ordinary `valid_trace` is not by itself a binary execution trace.
+The step function is:
 
-## 3. ELF32 parsing and loading
+\[
+\operatorname{step} : \Sigma \times Instruction \to Option(\Sigma).
+\]
 
-### 3.1 Parser profile
+It matches on an abstract `Instruction`; instruction fetch and decode are
+separate operations. `none` denotes a rejected or unavailable modeled
+transition, including invalid memory accesses or misaligned control-transfer
+targets. The current function does not fully model privilege state,
+architectural trap vectors, CSRs, interrupts, or memory ordering. `FENCE`
+advances the PC without a concurrency/memory-order semantics. `ECALL` and
+`EBREAK` set the terminal state to halted in this model.
 
-[`formal/ZkRV32I/Binary.lean`](formal/ZkRV32I/Binary.lean) contains functions
-to read little-endian 16-bit and 32-bit values from `Array UInt8`. The parser
-checks a subset of the ELF32 executable profile:
+## 4. Finite-memory and source-shaped step refinement
+
+### 4.1 Memory relation
+
+`RustMemory size` is a Lean structure with base address and bytes indexed by
+`Fin size`. The relation `RustMemory.Refines` requires:
+
+\[
+b_\mathrm{finite}=b_\mathrm{lean},\quad
+n_\mathrm{lean}=size,\quad
+\forall i<size,\; bytes_\mathrm{lean}(i)=bytes_\mathrm{finite}(i).
+\]
+
+The module proves conversion/refinement facts and selected load/store
+agreement results. The identifier “Rust” labels an intended shape; the
+definition is Lean code and is not generated from the Rust library.
+
+### 4.2 Lean source model
+
+`Refinement/Step.lean` defines `RustFiniteState`, `RustInstruction`, a
+translation from Lean instruction constructors, and the finite model step
+specifications. `Source.lean` exposes:
+
+\[
+\operatorname{rustSourceStep}(s,i)
+=\operatorname{rustFiniteStepSpec}
+  (s,\operatorname{encodeInstruction}(i)).
+\]
+
+For aligned PC, the theorem
+`ZkRV32I.Refinement.rust_to_rv32i_refinement` states:
+
+\[
+\operatorname{rustSourceStep}(s,i)
+= \operatorname{step}(s.toLean,i).
+\]
+
+This theorem reuses `master_end_to_end_refinement`. It is proved in Lean
+because both sides are Lean functions. The Rust file
+[`rust/src/lib.rs`](rust/src/lib.rs) is a human reference for the
+transcription, but there is no verified parser, extractor, or semantic
+translation from that file to `rustSourceStep`.
+
+`rustSourceStore_success_validRange` states that if the finite-model store
+returns `some next`, then the corresponding Lean `Memory.validRange` check is
+true. It does not establish that every Rust execution is memory-safe, that
+the compiler introduces no undefined behavior, or that errors have identical
+representations. The Rust API returns typed `Result` errors; multiple Lean
+operations use `Option`.
+
+## 5. ELF parser, segment mapping, and binary operations
+
+### 5.1 Accepted ELF subset
+
+`Binary.lean` reads little-endian fields from `Array UInt8` and parses a
+project-specific subset of ELF32. The current header parser checks:
 
 - ELF magic, 32-bit class, little-endian encoding, and current identification
   version;
-- `ET_EXEC`, RISC-V machine identifier 243, and ELF header size 52;
-- program-header table extent within the input byte array;
-- the minimum 32-byte ELF32 program-header size;
-- each parsed program-header record's file extent; and
-- `p_filesz ≤ p_memsz`.
+- object type `ET_EXEC`;
+- machine identifier 243 (RISC-V);
+- ELF version and 52-byte ELF header size;
+- program-header entry size minimum when entries exist; and
+- program-header table extent within the byte array.
 
-The parser reads the fields used to construct `ELF32Header` and
-`ELF32ProgramHeader`. It is a project-specific parser, not a complete,
-independently validated implementation of every ELF ABI rule. It does not
-validate all alignment congruences, all optional header fields, permissions
-and overlap policies, or every architecture-specific ABI requirement.
+Each program-header parser checks its 32-byte field extent, segment file
+extent, and `p_filesz ≤ p_memsz`. This parser does not claim complete ELF ABI
+validation; it does not establish every optional-header rule, section-table
+rule, alignment congruence, permission combination, overlap policy,
+relocation, or platform ABI condition.
 
-### 3.2 Segment loading and theorem scope
+### 5.2 Loader predicate and mapping
 
-`segmentFits` checks that a segment's file range fits the byte array, that its
-file size does not exceed its memory size, that its virtual address plus memory
-size is at most `2^32`, and that its range lies within the target Lean memory
-region. These expressions use `Nat`, so the bound checks themselves do not
-wrap. `loadSegment` copies file bytes, zero-fills the `p_memsz - p_filesz`
-tail, and preserves memory bytes outside the loaded range. `loadELF32Segments`
-folds the segment operation over loadable (`PT_LOAD`) records.
+For a segment \((o,f,v,m)\) and input array \(F\), destination memory with base
+\(b\) and size \(n\), `segmentFits` requires:
 
-The machine-checked theorems `segmentFits_preserves_address_bounds`,
-`loadSegment_success_preserves_geometry`, and
-`loadSegment_success_has_bounded_addresses` establish bounds and memory
-geometry properties for the Lean loader. They do not prove that the host file
-reader, ELF producer, linker, or an external loader has the same behavior.
+\[
+o+f\le |F|,\quad f\le m,\quad v+m\le 2^{32},\quad
+b\le v,\quad v-b+m\le n.
+\]
 
-### 3.3 Fetch and decode
+When this predicate holds, `loadSegment` copies bytes \(F[o,\ldots,o+f)\)
+into the virtual-address interval and zero-fills the remaining bytes up to
+`memorySize`. Outside the affected interval it preserves the memory byte
+function. Theorems in `Binary.lean` establish selected address bounds and
+base/size geometry for successful calls to this function.
 
-`fetch32` requires a word-aligned address and a valid four-byte memory range,
-then combines four bytes little-endian into a `BitVec 32`. `decodeBitVec32`
-converts that bitvector's natural value to `Word32` and invokes the existing
-Lean decoder. `fetchDecode_uses_isa_decoder` records this connection.
+The loader processes loadable segments in program-header order. No complete
+independent policy or theorem currently establishes that overlapping segments
+are rejected or that the chosen order matches every platform loader's
+behavior.
 
-`binaryStep` composes these operations with Lean `step`. The binary transition
-predicate includes a fetched word, a successful decode, and a successful
-abstract step. `binaryValidTrace_implies_valid_trace` follows by projecting the
-step witness from each binary transition. This is a valid implication between
-the defined Lean predicates, but does not establish that every possible
-machine execution of a linked artifact follows those transitions.
+### 5.3 Fetch/decode/step
 
-### 3.4 Concrete artifact verification
+For word address \(a\), `fetch32` requires:
 
-The firmware target in [`rust/src/bin/firmware.rs`](rust/src/bin/firmware.rs)
-is `no_std`, `no_main`, and `forbid(unsafe_code)`. Its start routine loops and
-the source declares a `#[used]` static function pointer to the Rust decoder.
-The linker script
-[`rust/firmware.ld`](rust/firmware.ld) places `_start` at `0x80000000`.
-[`scripts/verify_elf.lean`](scripts/verify_elf.lean) reads the resulting file
-at runtime and checks:
+\[
+a \bmod 4=0
+\quad\land\quad
+Memory.validRange(mem,a,4,4)=true.
+\]
 
-1. parsing succeeds and the object type is `ET_EXEC`;
-2. the parsed program-header count matches the header;
-3. the entry lies inside a loadable executable segment;
-4. the loadable segments fit the configured Lean memory;
-5. the entry address is a valid aligned four-byte range; and
-6. the fetched entry instruction decodes successfully.
+It constructs a 32-bit little-endian word:
 
-This is an executable validation procedure over a particular file. It is not a
-proof inside Lean that the compiler or linker generated the file correctly,
-nor does it execute the firmware or prove all its instructions and reachable
-states. The entry routine is a linker/loading fixture, not a run of the Rust
-reference `step` implementation.
+\[
+word = \sum_{k=0}^{3} byte(a-b+k)\cdot 2^{8k}\pmod {2^{32}}.
+\]
 
-## 4. Constraint model and zero-knowledge boundary
+`decodeBitVec32` converts this value to the existing word decoder.
+`binaryStep` composes fetch, successful decode, and `step`. In contrast,
+`binaryValidTransition` is a proposition that already contains witnesses for
+successful fetch, decode, and abstract step. The theorem from this predicate
+to `valid_transition` projects those witnesses; it does not independently
+show that every loaded artifact has such a transition at every reachable PC.
 
-The modules under `formal/ZkRV32I/Circuit/` define an illustrative Boolean
-field (`Bool` as `F₂`), add/multiply gates, public entry/final PC and trace
-length, and predicates called boundary, transition, range-check, ALU, branch,
-memory, and public-output constraints.
+### 5.4 Runtime smoke test
 
-The current implementation has important limitations:
+The current `scripts/verify_elf.lean` reads an ELF file from the host runtime,
+checks executable entry placement, loads segments into a configured Lean
+memory region beginning at `0x80000000`, fetches and decodes the entry word,
+then requires one successful call to `binaryStep`. It reports the next PC.
+For the firmware artifact used in the latest validation, this reported
+`0x80000004`.
 
-- `encode` stores the trace with an empty gate list.
-- The range predicate constrains the trace length only; it does not bit-decompose
-  PC, registers, addresses, or intermediates.
-- The gate equations are not linked to instruction operands or result columns.
-- Branch and memory constraints reuse the semantic transition predicate.
-- Public inputs do not bind final registers, memory, or commitments.
-- There is no production AIR/R1CS construction, cryptographic commitment,
-  proof system, verifier, or cryptographic soundness theorem.
+The script additionally evaluates separate model-level checks:
 
-Consequently, the circuit module is a Lean predicate exercise, not a
-zero-knowledge proof implementation.
+- `0xffffffff + 1` wraps in `Word32`;
+- ADDI from `0xffffffff` plus one writes zero;
+- unaligned and overflowing memory ranges are rejected;
+- `ECALL` transitions to the modeled halted tag, and a halted state rejects
+  another step; and
+- the trace length boundary is `MAX_TRACE = 2^{20}`.
 
-## 5. Proof and policy audit
+These checks do not form a sequential trace of the firmware, do not exercise
+the equivalent Rust paths, and do not simulate hardware. They are a finite
+runtime smoke test, not exhaustive stress testing.
 
-### 5.0 Finite adversarial harness
+## 6. Functional ALU datapath refinement
 
-The `adversarial` crate has a ten-case checked-in corpus, invokes the Lean
-oracle and Rust decoder/step implementation, compares selected output state,
-and includes hand-written checks for several mutation classes. Its host-side
-code uses allocating Rust types and is not part of the `no_std` execution
-crate. The corpus and mutation checks are finite software tests; they do not
-substitute for universal theorems. The Makefile's `differential` and `mutation`
-targets both invoke this harness rather than separate mutation-testing
-infrastructure.
+`Hardware/SingleCycle.lean` defines:
 
-### 5.1 Placeholder scan
+- `ALUControl` variants for add, subtract, bitwise logic, comparisons, and
+  shifts;
+- `selectALUInputs`, which selects destination, operation, and operands for
+  the ALU instruction subset;
+- `aluExecute`, a pure word-level result function; and
+- `singleCycleALUStep`, which writes the selected result and advances PC
+  under its terminal/alignment guards.
 
-The source policy scripts scan `.lean` files for `sorry` and `admit`, and scan
-for project-defined `axiom` commands. The current scan reports none of these.
-This statement is limited to source matched by the scripts; generated `.lake`
-outputs are excluded from the scans.
+The theorem `singleCycleALUStep_refines_step` states equality with the Lean
+`step` function for an aligned PC and instruction whose ALU input selection is
+present. Its proof is a theorem about two Lean definitions. No RTL source or
+netlist is imported. There is no cycle relation, clock/reset model, bus
+protocol, pipeline state, hazard logic, interrupt protocol, or physical
+microarchitecture relation. The name “single-cycle” describes the functional
+abstraction, not a validated hardware implementation.
 
-### 5.2 Theorem axiom dependencies
+## 7. Theorem and evidence inventory
 
-The current `#print axioms` results include:
+The table summarizes representative results and the exact boundary of their
+interpretation. It is not a claim that each repository property has been
+independently audited for all possible inputs.
+
+| Result/evidence | Statement checked | Does not establish |
+|---|---|---|
+| `rustMemory_toLean_refines` and related memory lemmas | Equality/relations between Lean memory representations. | Rust memory source correctness or compiled behavior. |
+| `master_end_to_end_refinement` | Lean finite step spec equals Lean `step` for matching abstract instruction with aligned PC. | Source extraction, compiler correctness, binary refinement. |
+| `rust_to_rv32i_refinement` | Source-shaped Lean wrapper refines to Lean `step`. | A theorem about `rust/src/lib.rs` execution. |
+| `rustSourceStore_success_validRange` | Successful modeled store implies a valid range. | Universal Rust memory safety or absence of compiler-induced behavior. |
+| `loadSegment_success_has_bounded_addresses` | Successful Lean segment load satisfies stated address bounds. | Full ELF correctness or external loader equivalence. |
+| `binaryValidTrace_implies_valid_trace` | A binary-valid predicate implies the abstract valid trace predicate. | Derivation of binary transition witnesses for arbitrary firmware. |
+| `singleCycleALUStep_refines_step` | Functional Lean ALU subset agrees with Lean `step` under preconditions. | RTL, gate-level, timing, or silicon refinement. |
+| `verify_elf.lean` runtime invocation | One concrete ELF parses, loads, fetches, decodes, and takes one modeled step; selected separate checks pass. | A universal theorem, complete program trace, Rust differential proof, or physical execution. |
+
+### 7.1 Axiom and placeholder policy
+
+The current source scans find no Lean `sorry`, `admit`, or project-defined
+`axiom` declarations. This describes the scanned Lean source, not all
+dependencies or the complete trusted base.
+
+Direct `#print axioms` output reported:
 
 ```text
 ZkRV32I.Refinement.master_end_to_end_refinement
   depends on axioms: [propext, Quot.sound]
 
-ZkRV32I.Binary.loadSegment_success_has_bounded_addresses
-  depends on axioms: [propext]
+ZkRV32I.Refinement.rust_to_rv32i_refinement
+  depends on axioms: [propext, Quot.sound]
 
-ZkRV32I.Binary.binaryValidTrace_implies_valid_trace
+ZkRV32I.Hardware.singleCycleALUStep_refines_step
+  depends on axioms: [propext, Quot.sound]
+
+ZkRV32I.Binary.loadSegment_success_has_bounded_addresses
   depends on axioms: [propext]
 ```
 
-These names are Lean foundational axioms, not declarations introduced by this
-project. Thus the accurate claim is **no project-defined axioms or proof
-placeholders were found**, rather than “the proofs use no axioms whatsoever.”
+These are Lean foundational axioms. The accurate statement is that there are
+no project-defined axioms in scanned source, while some theorem dependencies
+include foundational axioms. The theorem prover/kernel and its implementation
+remain part of the trusted proof-checking base.
 
-The other shell policy scripts are source-level checks. In particular,
-`check_isa_coverage.sh` searches for instruction-case text in selected files;
-it is not a semantic audit or a proof. The policies do not provide a general
-proof that no unsafe or allocation behavior could enter through every
-dependency or build configuration.
+### 7.2 Static and dynamic checks
 
-### 5.3 Reproduction commands
+The repository scripts check source spelling patterns for `sorry`, `admit`,
+axiom declarations, unsafe constructs, allocation API names, and selected
+instruction case names. Such scans are useful regression guards but are not
+semantic verification. The adversarial harness has a finite corpus and
+hand-written mutation checks; it provides selected finite testing, not a
+universal proof or broad property-based coverage.
 
-With the pinned toolchains and RV32I target available, run from the repository
-root:
+## 8. Security, verification, and grant claims matrix
+
+| Topic | Defensible current claim | Research gap before a stronger claim |
+|---|---|---|
+| Machine-checked proofs | Lean checks the declarations and theorem proofs in the built modules. | Independently state and validate the complete ISA/ABI specification and trusted base. |
+| Placeholder discipline | Current scripts find no `sorry`/`admit`; source scan finds no project axiom command. | Audit imports, generated code, scripts, and CI reproducibility beyond text scans. |
+| Rust safety policy | Core source includes `no_std` and `forbid(unsafe_code)`; checks pass for the RISC-V target. | Prove semantics of dependencies and Rust implementation; verify compiled result or use a verified compiler. |
+| ELF processing | A selected ELF32 subset is parsed; loader bounds are checked; concrete fixture passes runtime validation. | Complete format profile and parser soundness/completeness, overlap and permissions policy, producer-loader correspondence. |
+| Execution | One modeled instruction at the fixture entry succeeds. | Multi-step binary trace proof, loop/fault/termination handling, and artifact-specific semantic correspondence. |
+| Hardware | A pure Lean ALU subset equals the Lean instruction semantics. | A named RTL target, cycle semantics, state relation, and RTL-to-ISA refinement proof. |
+| Cryptographic/ZK use | Repository contains illustrative constraint predicates. | Sound constraints, proof system, verifier correctness, zero-knowledge and cryptographic assumptions. |
+| Institutional readiness | The source and proof boundaries can be evaluated and extended. | No certification or seL4/CompCert-equivalent assurance case is claimed. |
+
+This matrix is intended to support technically informed research evaluation,
+not to certify grant eligibility, security, production readiness, or
+equivalence to another project.
+
+## 9. Trusted computing base and assumptions
+
+The theorem results are checked by Lean under its type theory and reported
+axioms. The external environment includes the Lean kernel/toolchain used to
+build and check the project. Runtime ELF parsing additionally depends on the
+host filesystem and Lean IO delivering the bytes passed to the parser.
+
+The firmware artifact is produced by `rustc`/LLVM and the target linker
+according to repository configuration. No project theorem proves those
+transformations correct. The hardware target is unspecified because no
+concrete external RTL implementation is part of the current refinement proof.
+Any future end-to-end theorem must state which of these components are proved,
+assumed, or validated by testing.
+
+## 10. Reproduction
+
+With the pinned toolchains and target support, from the repository root:
 
 ```sh
 lake build
@@ -308,80 +408,72 @@ lake env lean --run scripts/verify_elf.lean \
   target/riscv32i-unknown-none-elf/release/firmware
 ```
 
-The Rust target linker bundled with the selected toolchain is `rust-lld`, and
-the target configuration passes `rust/firmware.ld`. On Windows, Bash-based
-scripts also require a working Bash installation and a `PATH` from which `lake`
-is available. Rust tests require a target with test-harness support and an
-available host linker; a bare-metal target check is not equivalent to running
-unit tests.
+The latest recorded runtime result in this workspace was:
 
-## 6. Trust boundary
+```text
+Parsed, loaded, fetched, decoded, and executed ELF entry 0x2147483648;
+next PC is 0x2147483652.
+Model edge cases passed: ADDI register wraparound, unaligned and overflowing
+memory ranges, ECALL halt behavior, and MAX_TRACE boundary.
+```
 
-The formal proofs are checked by the Lean kernel in the pinned Lean version.
-Theorems rely on the standard Lean foundational axioms reported above. The
-repository also relies on the correctness of the Lean compiler/runtime and
-kernel implementation as the proof-checking platform.
+These outputs are environment-specific test evidence. They are not a durable
+build attestation unless captured together with source revision, binary hash,
+tool versions, and build configuration. Rust unit tests require a supported
+host target and linker; the bare-metal target check is not itself a test run.
 
-The ELF file is parsed by Lean code but supplied as an external runtime input.
-The Rust source is compiled by `rustc`, and the firmware is linked by the
-target linker (`rust-lld`) according to a linker script. The current Lean
-theorems do not establish:
+## 11. Development roadmap
 
-- Rust language semantics or correctness of the Rust compiler;
-- correctness of LLVM code generation or the linker;
-- equivalence of the compiled ELF's machine code to the Rust source semantics;
-- complete ELF ABI compliance or behavior of hardware loading; or
-- refinement of all firmware executions to the abstract trace semantics.
+### Work package A — Specification closure
 
-The theorem connecting a binary-valid trace to `valid_trace` is conditional on
-the binary-valid trace predicate, which already requires each fetch/decode
-result and each Lean `step` result. It is not an independent derivation of
-those witnesses from the generated firmware's actual execution.
+State the exact RV32I profile, supported encodings, fault policy, and ELF
+profile. Prove decoder and parser properties against those specifications,
+including invalid-input classifications and segment interaction.
 
-## 7. Limitations and future work
+### Work package B — Binary trace refinement
 
-A credible path toward a stronger end-to-end result would require separate,
-incremental obligations:
+Define a trace carrying binary words, fetch addresses, decode outcomes, and
+successor states. Prove induction from loaded-memory invariants to each
+transition. Relate this trace to `Trace.valid_trace` without assuming its
+transition witnesses in the theorem premise.
 
-1. **ELF parser specification:** Prove parser soundness properties against a
-   fully stated ELF32 profile, including the accepted header constraints,
-   program-table bounds, segment fields, alignment, and rejection behavior.
-2. **Multi-segment image relation:** Define the relation between ELF program
-   headers, file bytes, and loaded memory, then prove all load segments preserve
-   the intended byte mapping, zero-fill, non-overlap/overlap policy, and
-   address bounds.
-3. **Binary decoder equivalence:** Prove that instruction bytes fetched from a
-   loaded image map to the intended architectural instruction encoding,
-   including reserved and unsupported encoding classification.
-4. **Execution trace linkage:** Define a fetch-decode-execute trace relation
-   that carries concrete instruction words and prove its correspondence with
-   the desired ISA semantics over multiple steps.
-5. **Rust source and machine-code connection:** Either formally verify the
-   relevant Rust compiler/code-generation path, use a verified compiler, or
-   narrow the theorem to a specific artifact and make its binary-level
-   semantics the object of proof. Any trusted components must be listed.
-6. **Fault and terminal correspondence:** Relate Rust `Result` error variants
-   to Lean partial outcomes and establish matching conditions for memory
-   faults, alignment faults, illegal encodings, halted states, and system
-   instructions.
-7. **Production constraint system:** If zero-knowledge verification is a goal,
-   connect each machine transition to algebraic constraints, prove encoding
-   completeness and soundness, implement or specify the proof/verifier stack,
-   and establish the required cryptographic assumptions separately.
-8. **Build and test reproducibility:** Run policy checks, Rust tests on a
-   supported host target, target firmware builds, and artifact validation in CI.
-   Finite tests should supplement—not replace—universal theorems.
+### Work package C — Source-to-binary validation
 
-## 8. Conclusion
+Select an actual compiler IR and supported language subset, define its
+operational semantics, and verify a translation validator over emitted
+machine code. A theorem must identify exactly which compiler stages are
+covered, what is trusted, and how source faults/undefined behavior are
+represented. A Lean model of a Rust-shaped step alone does not discharge this
+work package.
 
-The repository currently supplies a machine-checked Lean ISA/machine model, a
-no-std Rust reference implementation, Lean finite-memory and model-step
-correspondence results, an ELF32/RISC-V loader, and a concrete artifact check
-that fetches and decodes the entry instruction of a linked firmware image.
-Those are meaningful foundations for further verification work.
+### Work package D — RTL refinement
 
-They are not yet an unconditional, complete, compiler-to-binary-to-execution
-refinement proof. In particular, the existing master theorem is a Lean-to-Lean
-model theorem, and the ELF utility validates a concrete file operationally
-without proving the compiler/linker path. These boundaries are essential to
-the interpretation of all reported build and proof results.
+Choose a named RTL core and revision. Formalize clocked transition behavior,
+reset, memory protocol, interrupts/exceptions, and architectural observation.
+Prove a simulation/refinement theorem with stuttering or cycle correspondence
+as needed. The current functional ALU model is only a starting abstraction.
+
+### Work package E — Constraint and cryptographic soundness
+
+Replace placeholder-like encoding with a complete state/transition encoding.
+Prove the algebraic relation sound and complete for the intended trace model,
+then separately state and justify the proof system's cryptographic
+assumptions.
+
+The work packages are future research proposals. Completion should be
+reported theorem-by-theorem with reproducible source, exact assumptions, and
+axiom audit output.
+
+## 12. Conclusion
+
+The current repository combines a compilable Lean RV32I model, finite-memory
+and model-step correspondence results, a subset ELF32 loader with bounds
+lemmas, a runtime one-step firmware check, and a functional Lean ALU
+refinement. Its principal value is as a transparent base for investigating
+proof boundaries and designing stronger translation, binary-trace, and
+hardware-refinement obligations.
+
+It does not establish verified compilation, full ELF execution refinement,
+RTL correctness, physical-silicon invariance, or ZK soundness. Those are
+distinct research efforts that require explicit source/compiler/RTL targets
+and additional definitions, proofs, and validation.

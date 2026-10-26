@@ -1,6 +1,6 @@
 // Lean compiler output
 // Module: ZkRV32I
-// Imports: Init ZkRV32I.Circuit.Constraints ZkRV32I.Refinement.Step ZkRV32I.Refinement.Memory ZkRV32I.Binary
+// Imports: Init ZkRV32I.Circuit.Constraints ZkRV32I.Refinement.Step ZkRV32I.Source ZkRV32I.Hardware.SingleCycle ZkRV32I.Refinement.Memory ZkRV32I.Binary
 #include <lean/lean.h>
 #if defined(__clang__)
 #pragma clang diagnostic ignored "-Wunused-parameter"
@@ -16,6 +16,8 @@ extern "C" {
 lean_object* initialize_Init(uint8_t builtin, lean_object*);
 lean_object* initialize_ZkRV32I_Circuit_Constraints(uint8_t builtin, lean_object*);
 lean_object* initialize_ZkRV32I_Refinement_Step(uint8_t builtin, lean_object*);
+lean_object* initialize_ZkRV32I_Source(uint8_t builtin, lean_object*);
+lean_object* initialize_ZkRV32I_Hardware_SingleCycle(uint8_t builtin, lean_object*);
 lean_object* initialize_ZkRV32I_Refinement_Memory(uint8_t builtin, lean_object*);
 lean_object* initialize_ZkRV32I_Binary(uint8_t builtin, lean_object*);
 static bool _G_initialized = false;
@@ -30,6 +32,12 @@ res = initialize_ZkRV32I_Circuit_Constraints(builtin, lean_io_mk_world());
 if (lean_io_result_is_error(res)) return res;
 lean_dec_ref(res);
 res = initialize_ZkRV32I_Refinement_Step(builtin, lean_io_mk_world());
+if (lean_io_result_is_error(res)) return res;
+lean_dec_ref(res);
+res = initialize_ZkRV32I_Source(builtin, lean_io_mk_world());
+if (lean_io_result_is_error(res)) return res;
+lean_dec_ref(res);
+res = initialize_ZkRV32I_Hardware_SingleCycle(builtin, lean_io_mk_world());
 if (lean_io_result_is_error(res)) return res;
 lean_dec_ref(res);
 res = initialize_ZkRV32I_Refinement_Memory(builtin, lean_io_mk_world());

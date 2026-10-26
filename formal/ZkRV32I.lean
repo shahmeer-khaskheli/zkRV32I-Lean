@@ -1,11 +1,16 @@
 import ZkRV32I.Circuit.Constraints
 import ZkRV32I.Refinement.Step
+import ZkRV32I.Source
+import ZkRV32I.Hardware.SingleCycle
 import ZkRV32I.Refinement.Memory
 import ZkRV32I.Binary
 
 export ZkRV32I (Word32 RegisterFile Memory Instruction MachineState TerminalState
   ExecutionOutcome DecodeError decode step MAX_TRACE Row Trace initial terminal valid_transition
   valid_trace)
+
+export ZkRV32I.Hardware (ALUControl aluExecute selectALUInputs
+  singleCycleALUStep singleCycleALUStep_refines_step)
 
 export ZkRV32I.Circuit (FieldElem PublicInputs AlgebraicGate PrivateWitness encode
   publicInputsFor boundaryConstraints transitionConstraints rangeCheckConstraints
@@ -16,6 +21,9 @@ export ZkRV32I.Refinement (RustState RustInstruction interpret related
   encodeInstruction rustStepSpec RustFiniteState RustFiniteState.toLean
   finiteRelated rustFiniteStepSpec rustFiniteInterpreterStep
   isCoveredInstruction)
+
+export ZkRV32I.Refinement (RustSourceState rustSourceStep
+  rust_to_rv32i_refinement rustSourceStore_success_validRange)
 
 export ZkRV32I.Refinement (RustMemory RustMemoryError RustMemory.Refines
   RustMemory.toLean RustMemory.ofLean RustMemory.checkedOffset RustMemory.load
