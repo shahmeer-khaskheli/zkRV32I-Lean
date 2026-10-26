@@ -1,5 +1,0 @@
-{"log":
- [{"message":
-   ".> LEAN_PATH=.\\.\\.lake\\build\\lib\\lean c:\\Users\\HARRY POTTER\\.elan\\toolchains\\leanprover--lean4---v4.19.0\\bin\\lean.exe .\\.\\.\\formal\\ZkRV32I\\Source.lean -R .\\.\\.\\formal -o .\\.\\.lake\\build\\lib\\lean\\ZkRV32I\\Source.olean -i .\\.\\.lake\\build\\lib\\lean\\ZkRV32I\\Source.ilean -c .\\.\\.lake\\build\\ir\\ZkRV32I\\Source.c --json",
-   "level": "trace"}],
- "depHash": "2269632664228119103"}
