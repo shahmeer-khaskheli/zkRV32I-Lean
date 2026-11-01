@@ -1,0 +1,1 @@
+/mnt/c/Users/HARRY\ POTTER/zk-verifier-core/target/riscv32i-unknown-none-elf/release/firmware: /mnt/c/Users/HARRY\ POTTER/zk-verifier-core/rust/src/bin/firmware.rs /mnt/c/Users/HARRY\ POTTER/zk-verifier-core/rust/src/lib.rs
