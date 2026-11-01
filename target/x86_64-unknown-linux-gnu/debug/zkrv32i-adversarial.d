@@ -1,1 +1,0 @@
-/mnt/c/Users/HARRY\ POTTER/zk-verifier-core/target/x86_64-unknown-linux-gnu/debug/zkrv32i-adversarial: /mnt/c/Users/HARRY\ POTTER/zk-verifier-core/adversarial/corpus.txt /mnt/c/Users/HARRY\ POTTER/zk-verifier-core/adversarial/src/main.rs /mnt/c/Users/HARRY\ POTTER/zk-verifier-core/rust/src/lib.rs
