@@ -201,4 +201,33 @@ theorem decode_unsupported_system_instruction :
     decode (Word32.ofNat 0x00200073) = .error .unsupportedInstruction := by
   rfl
 
+set_option maxRecDepth 100000 in
+theorem decode_addi_x1_x0_one :
+    decode (Word32.ofNat 0x00100093) =
+      .ok (.addi (Fin.mk 1 (by decide)) (Fin.mk 0 (by decide)) 1) := by
+  rfl
+
+set_option maxRecDepth 100000 in
+theorem decode_addi_x2_x0_two :
+    decode (Word32.ofNat 0x00200113) =
+      .ok (.addi (Fin.mk 2 (by decide)) (Fin.mk 0 (by decide)) 2) := by
+  rfl
+
+set_option maxRecDepth 100000 in
+theorem decode_addi_x3_x1_three :
+    decode (Word32.ofNat 0x00308193) =
+      .ok (.addi (Fin.mk 3 (by decide)) (Fin.mk 1 (by decide)) 3) := by
+  rfl
+
+set_option maxRecDepth 100000 in
+theorem decode_addi_x4_x1_four :
+    decode (Word32.ofNat 0x00408213) =
+      .ok (.addi (Fin.mk 4 (by decide)) (Fin.mk 1 (by decide)) 4) := by
+  rfl
+
+set_option maxRecDepth 100000 in
+theorem decode_ecall_word :
+    decode (Word32.ofNat 0x00000073) = .ok .ecall := by
+  rfl
+
 end ZkRV32I

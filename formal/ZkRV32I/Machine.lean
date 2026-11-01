@@ -188,3 +188,4 @@ theorem x0_preserved_by_step (s : MachineState) (i : Instruction) (s' : MachineS
   split at h <;> simp_all [RegisterFile.x0, regWrite, RegisterFile.write]
 
 end ZkRV32I
+

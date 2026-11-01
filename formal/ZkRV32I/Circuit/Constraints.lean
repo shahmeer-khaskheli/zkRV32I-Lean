@@ -1,5 +1,6 @@
 import ZkRV32I.Trace
 import ZkRV32I.Circuit.Field
+import ZkRV32I.Binary
 
 namespace ZkRV32I.Circuit
 
@@ -27,6 +28,95 @@ structure PrivateWitness where
   trace : Trace
   gates : List AlgebraicGate
 
+/-- A constraint-system row containing every architectural value constrained
+by one dynamic binary transition. -/
+structure ConstraintRow where
+  pc : Word32
+  regs : RegisterFile
+  memory : Memory
+  instruction : Instruction
+  instructionWord : BitVec 32
+  terminal : TerminalState
+
+def ConstraintRow.toMachineState (row : ConstraintRow) : MachineState :=
+  { pc := row.pc
+    regs := row.regs
+    memory := row.memory
+    terminal := row.terminal }
+
+structure ConstraintTraceRows where
+  rows : Array ConstraintRow
+  bounded : rows.size ≤ MAX_TRACE
+
+def ConstraintRow.fromMachineState
+    (state : MachineState) (instruction : Instruction)
+    (word : BitVec 32) : ConstraintRow :=
+  { pc := state.pc
+    regs := state.regs
+    memory := state.memory
+    instruction := instruction
+    instructionWord := word
+    terminal := state.terminal }
+
+def ConstraintTransition
+    (before after : ConstraintRow) : Prop :=
+  ZkRV32I.Binary.fetch32 before.toMachineState.memory before.pc.toNat =
+      some before.instructionWord ∧
+  ZkRV32I.Binary.decodeBitVec32 before.instructionWord = .ok before.instruction ∧
+  step before.toMachineState before.instruction = some after.toMachineState
+
+theorem constraints_sound
+    (before after : ConstraintRow)
+    (hconstraints : ConstraintTransition before after) :
+    ZkRV32I.Binary.binaryTransition before.toMachineState after.toMachineState := by
+  obtain ⟨hfetch, hdecode, hstep⟩ := hconstraints
+  exact ⟨⟨before.instructionWord, before.instruction, hfetch, hdecode, hstep⟩, trivial⟩
+
+theorem binaryTransition_complete
+    (beforeState afterState : MachineState)
+    (htransition : ZkRV32I.Binary.binaryTransition beforeState afterState) :
+    ∃ before after : ConstraintRow,
+      before.toMachineState = beforeState ∧
+      after.toMachineState = afterState ∧
+      ConstraintTransition before after := by
+  obtain ⟨witness, _⟩ := htransition
+  let before : ConstraintRow :=
+    ConstraintRow.fromMachineState beforeState witness.instruction witness.word
+  let after : ConstraintRow :=
+    ConstraintRow.fromMachineState afterState witness.instruction witness.word
+  exact ⟨before, after, rfl, rfl,
+    ⟨witness.hfetch, witness.hdecode, witness.hstep⟩⟩
+
+def ConstraintTraceRows.satisfied (trace : ConstraintTraceRows) : Prop :=
+  ∀ (index : Nat) (hnext : index + 1 < trace.rows.size),
+    ConstraintTransition
+      (trace.rows[index]'(Nat.lt_trans (Nat.lt_succ_self index) hnext))
+      (trace.rows[index + 1]'hnext)
+
+def ConstraintTraceRows.toTrace (trace : ConstraintTraceRows) : Trace where
+  length := trace.rows.size
+  rows := fun index => (trace.rows[index]'index.isLt).toMachineState
+  bounded := trace.bounded
+
+def ConstraintTraceRows.toBoundedCFGTrace
+    (trace : ConstraintTraceRows) (hsatisfied : trace.satisfied) :
+    ZkRV32I.Binary.BoundedCFGTrace where
+  stateTrace := trace.toTrace
+  transitions := by
+    intro index hnext
+    have hbefore : index < trace.rows.size :=
+      Nat.lt_trans (Nat.lt_succ_self index) hnext
+    exact constraints_sound
+      (trace.rows[index]'hbefore)
+      (trace.rows[index + 1]'hnext)
+      (hsatisfied index hnext)
+
+theorem constraint_trace_implies_cfg_trace
+    (trace : ConstraintTraceRows)
+    (hsatisfied : trace.satisfied) :
+    ∃ cfg : ZkRV32I.Binary.BoundedCFGTrace,
+      cfg.stateTrace = trace.toTrace := by
+  exact ⟨trace.toBoundedCFGTrace hsatisfied, rfl⟩
 def encode (trace : Trace) : PrivateWitness :=
   ⟨trace, []⟩
 

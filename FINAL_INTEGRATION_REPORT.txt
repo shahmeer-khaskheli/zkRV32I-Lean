@@ -1,0 +1,213 @@
+zkRV32I-Lean INTEGRATION REPORT
+Date: 2026-10-26T04:24:38-07:00
+Directory: /mnt/c/Users/HARRY POTTER/zk-verifier-core
+Target: riscv32i-unknown-none-elf
+
+========== ENVIRONMENT ==========
+Linux DESKTOP-ICAM3CE 6.18.33.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun 18 21:54:43 UTC 2026 x86_64 GNU/Linux
+rustc 1.97.1 (8bab26f4f 2026-07-14)
+cargo 1.97.1 (c980f4866 2026-06-30)
+Lake version 5.0.0-6caaee8 (Lean version 4.19.0)
+ M .cargo/config.toml
+ M .github/workflows/ci.yml
+ M ARCHITECTURE.md
+ M Cargo.toml
+ M Makefile
+ M README.md
+ M TECHNICAL_WHITEPAPER.md
+ M adversarial/Cargo.toml
+ M adversarial/LeanOracle.lean
+ M adversarial/corpus.txt
+ M adversarial/src/main.rs
+ M adversarial/target/.rustc_info.json
+ M formal/ZkRV32I.lean
+ M formal/ZkRV32I/Base.lean
+ M formal/ZkRV32I/Binary.lean
+ M formal/ZkRV32I/Circuit/Constraints.lean
+ M formal/ZkRV32I/Circuit/Field.lean
+ M formal/ZkRV32I/Hardware/SingleCycle.lean
+ M formal/ZkRV32I/ISA.lean
+ M formal/ZkRV32I/Machine.lean
+ M formal/ZkRV32I/Refinement/Memory.lean
+ M formal/ZkRV32I/Refinement/Step.lean
+ M formal/ZkRV32I/Source.lean
+ M formal/ZkRV32I/Trace.lean
+ M lakefile.toml
+ M lean-toolchain
+ M release/BUILD_PROVENANCE.md
+ M release/KNOWN_LIMITATIONS.md
+ M release/PROOF_MANIFEST.md
+ M release/VERIFIED_SCOPE.md
+ M rust-toolchain.toml
+ M rust/Cargo.toml
+ M rust/firmware.ld
+ M rust/src/bin/firmware.rs
+ M scripts/verify_elf.lean
+?? .lake/
+?? FINAL_INTEGRATION_REPORT.txt
+?? FINAL_MACHINE_AUDIT.txt
+?? adversarial/target/riscv32i-unknown-none-elf/
+?? target/
+
+========== LEAN FULL BUILD ==========
+Build completed successfully.
+EXIT_CODE=0
+STATUS=PASS
+
+========== RUST HOST UNIT TESTS ==========
+   Compiling zkrv32i v0.1.0 (/mnt/c/Users/HARRY POTTER/zk-verifier-core/rust)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.21s
+     Running unittests src/lib.rs (target/x86_64-unknown-linux-gnu/debug/deps/zkrv32i-4e6114514993e77f)
+
+running 16 tests
+test tests::branch_taken_and_not_taken_update_pc_correctly ... ok
+test tests::ecall_and_ebreak_set_terminal_status_and_fence_advances_pc ... ok
+test tests::jal_and_jalr_write_link_and_jump_to_aligned_targets ... ok
+test tests::decode_accepts_priority_alu_and_rejects_illegal_encodings ... ok
+test tests::misaligned_control_flow_target_is_rejected_without_a_successor ... ok
+test tests::multi_byte_memory_access_is_little_endian_and_aligned ... ok
+test tests::memory_checks_bounds_alignment_and_end_address_overflow ... ok
+test tests::load_store_are_little_endian_and_faults_are_reported ... ok
+test tests::register_file_rejects_out_of_range_index ... ok
+test tests::signed_and_unsigned_branches_and_halfword_memory_work ... ok
+test tests::signed_and_unsigned_comparisons_and_loads_are_distinct ... ok
+test tests::step_executes_wrapping_arithmetic_and_bitwise_operations ... ok
+test tests::step_keeps_x0_zero_and_ignores_write ... ok
+test tests::upper_immediate_and_shift_operations_use_rv32_width ... ok
+test tests::word_arithmetic_wraps_and_checked_helpers_report_overflow ... ok
+test tests::x0_reads_zero_and_rejects_writes ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT_CODE=0
+STATUS=PASS
+
+========== RUST HOST INTEGRATION TESTS ==========
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running unittests src/lib.rs (target/x86_64-unknown-linux-gnu/debug/deps/zkrv32i-4e6114514993e77f)
+
+running 16 tests
+test tests::branch_taken_and_not_taken_update_pc_correctly ... ok
+test tests::ecall_and_ebreak_set_terminal_status_and_fence_advances_pc ... ok
+test tests::jal_and_jalr_write_link_and_jump_to_aligned_targets ... ok
+test tests::misaligned_control_flow_target_is_rejected_without_a_successor ... ok
+test tests::decode_accepts_priority_alu_and_rejects_illegal_encodings ... ok
+test tests::signed_and_unsigned_branches_and_halfword_memory_work ... ok
+test tests::register_file_rejects_out_of_range_index ... ok
+test tests::load_store_are_little_endian_and_faults_are_reported ... ok
+test tests::memory_checks_bounds_alignment_and_end_address_overflow ... ok
+test tests::multi_byte_memory_access_is_little_endian_and_aligned ... ok
+test tests::upper_immediate_and_shift_operations_use_rv32_width ... ok
+test tests::step_keeps_x0_zero_and_ignores_write ... ok
+test tests::signed_and_unsigned_comparisons_and_loads_are_distinct ... ok
+test tests::step_executes_wrapping_arithmetic_and_bitwise_operations ... ok
+test tests::x0_reads_zero_and_rejects_writes ... ok
+test tests::word_arithmetic_wraps_and_checked_helpers_report_overflow ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+EXIT_CODE=0
+STATUS=PASS
+
+========== RISC-V TARGET SETUP ==========
+info: downloading component rust-std
+TARGET_INSTALL_EXIT=0
+
+========== RUST BARE-METAL CHECK ==========
+    Checking zkrv32i v0.1.0 (/mnt/c/Users/HARRY POTTER/zk-verifier-core/rust)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.52s
+EXIT_CODE=0
+STATUS=PASS
+
+========== RELEASE FIRMWARE BUILD ==========
+   Compiling zkrv32i v0.1.0 (/mnt/c/Users/HARRY POTTER/zk-verifier-core/rust)
+    Finished `release` profile [optimized] target(s) in 1.51s
+EXIT_CODE=0
+STATUS=PASS
+
+========== ELF VERIFICATION ==========
+
+========== VERIFY BUILT ELF ==========
+uncaught exception: no such file or directory (error code: 2)
+  file: /mnt/c/Users/HARRY POTTER/zk-verifier-core/target/riscv32i-unknown-none-elf/release/firmware
+EXIT_CODE=1
+STATUS=FAIL_OR_BLOCKED
+
+========== RUST-LEAN DIFFERENTIAL TEST ==========
+   Compiling zkrv32i v0.1.0 (/mnt/c/Users/HARRY POTTER/zk-verifier-core/rust)
+   Compiling zkrv32i-adversarial v0.1.0 (/mnt/c/Users/HARRY POTTER/zk-verifier-core/adversarial)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.90s
+     Running `target/x86_64-unknown-linux-gnu/debug/zkrv32i-adversarial`
+case addi_x1_imm1: agreement
+case add_x3_x1_x2: agreement
+case beq_equal_taken: agreement
+case beq_unequal_not_taken: agreement
+case beq_misaligned_pc: divergence (Rust step: MisalignedInstructionAddress; Lean fault)
+case lw_aligned: agreement
+case lw_misaligned: divergence (Rust step: Memory(Misaligned); Lean fault)
+case lw_out_of_bounds: divergence (Rust step: Memory(OutOfBounds); Lean fault)
+case write_x0: agreement
+case illegal_zero_word: divergence (Rust decode: IllegalInstruction; Lean decode_error)
+mutation class pc: exercised
+mutation class gpr: exercised
+mutation class x0: exercised
+mutation class branch: exercised
+mutation class memory: exercised
+mutation class trace_length: exercised
+mutation class public_output: exercised
+mutation class constraint_selector: exercised
+corpus: 10 cases, regressions passed; differential agreements: 6, divergences: 4
+finite harness results are not a universal proof
+HARNESS_EXIT=0
+DIVERGENCE_COUNT=5
+STATUS=FAIL
+
+========== FINAL LIMITATIONS ==========
+Build success is not complete RV32I ISA certification.
+Finite tests are not a universal correctness proof.
+ELF model verification is not physical-hardware execution.
+Review every differential divergence before claiming equivalence.
+
+========== FINAL GIT STATUS ==========
+ M .cargo/config.toml
+ M .github/workflows/ci.yml
+ M ARCHITECTURE.md
+ M Cargo.toml
+ M Makefile
+ M README.md
+ M TECHNICAL_WHITEPAPER.md
+ M adversarial/Cargo.toml
+ M adversarial/LeanOracle.lean
+ M adversarial/corpus.txt
+ M adversarial/src/main.rs
+ M adversarial/target/.rustc_info.json
+ M formal/ZkRV32I.lean
+ M formal/ZkRV32I/Base.lean
+ M formal/ZkRV32I/Binary.lean
+ M formal/ZkRV32I/Circuit/Constraints.lean
+ M formal/ZkRV32I/Circuit/Field.lean
+ M formal/ZkRV32I/Hardware/SingleCycle.lean
+ M formal/ZkRV32I/ISA.lean
+ M formal/ZkRV32I/Machine.lean
+ M formal/ZkRV32I/Refinement/Memory.lean
+ M formal/ZkRV32I/Refinement/Step.lean
+ M formal/ZkRV32I/Source.lean
+ M formal/ZkRV32I/Trace.lean
+ M lakefile.toml
+ M lean-toolchain
+ M release/BUILD_PROVENANCE.md
+ M release/KNOWN_LIMITATIONS.md
+ M release/PROOF_MANIFEST.md
+ M release/VERIFIED_SCOPE.md
+ M rust-toolchain.toml
+ M rust/Cargo.toml
+ M rust/firmware.ld
+ M rust/src/bin/firmware.rs
+ M scripts/verify_elf.lean
+?? .lake/
+?? FINAL_INTEGRATION_REPORT.txt
+?? FINAL_MACHINE_AUDIT.txt
+?? adversarial/target/riscv32i-unknown-none-elf/
+?? target/
+
+Report path: /mnt/c/Users/HARRY POTTER/zk-verifier-core/FINAL_INTEGRATION_REPORT.txt

@@ -15,7 +15,10 @@ export ZkRV32I.Hardware (ALUControl aluExecute selectALUInputs
 export ZkRV32I.Circuit (FieldElem PublicInputs AlgebraicGate PrivateWitness encode
   publicInputsFor boundaryConstraints transitionConstraints rangeCheckConstraints
   aluConstraints branchConstraints memoryConstraints publicOutputConstraints
-  constraintsSatisfied)
+  constraintsSatisfied ConstraintRow ConstraintTraceRows ConstraintTransition
+  constraints_sound binaryTransition_complete
+  ConstraintTraceRows.satisfied ConstraintTraceRows.toTrace
+  ConstraintTraceRows.toBoundedCFGTrace constraint_trace_implies_cfg_trace)
 
 export ZkRV32I.Refinement (RustState RustInstruction interpret related
   encodeInstruction rustStepSpec RustFiniteState RustFiniteState.toLean
@@ -32,12 +35,84 @@ export ZkRV32I.Refinement (RustMemory RustMemoryError RustMemory.Refines
 export ZkRV32I.Binary (ELF32Header ELF32ProgramHeader ELF32Image
   readU16LE readU32LE parseELF32Header parseELF32ProgramHeader
   readELF32ProgramHeaders parseELF32 loadSegment loadELF32Segments
-  ELF32Image.loadMemory segmentFits segmentFits_preserves_address_bounds
+  ELF32Image.loadMemory loadELF32Segments_success_preserves_geometry
+  ELF32Image.loadMemory_success_preserves_geometry
+  ElfLoadSpec ElfLoadableImage elfFileOffsetAddress
+  elfLoadableSegmentBoundsHold elfLoadableSegmentsBounded
+  elfMemoryRangesDisjoint elfLoadableSegmentsDisjoint
+  elfToInitialMachineState elf_initial_state_correct
+  segmentFits segmentFits_preserves_address_bounds
   loadSegment_success_preserves_geometry loadSegment_success_has_bounded_addresses
+  LoadedELFImage LoadedELFImage.memory_preserves_geometry
+  LoadedELFImage.entry_fetch32_isSome LoadedELFImage.entry_fetchDecode_isSome
+  LoadedELFImage.executableAddress
+  LoadedELFImage.entry_is_executable LoadedELFImage.HasSuccessfulEntryStep
+  LoadedELFImage.hasSuccessfulEntryStep_constructs_execution
   decodeBitVec32 fetch32 fetchDecode binaryStep binaryValidTransition
-  fetchDecode_uses_isa_decoder binaryStep_success_is_binaryValidTransition
+  fetch32_success_implies_aligned_and_valid
+  fetchDecode_uses_isa_decoder binaryStep_eq_isaStep_of_fetch_decode
+  binaryStep_success_is_binaryValidTransition
+  binaryStep_success_yields_isa_step
+  binaryStep_success_has_fetch_decode_step_witness
+  binaryStep_success_has_fetch_decode_step_pair
+  binaryStep_success_has_fetch_decode_step_data
   binaryValidTransition_implies_valid_transition binaryValidTrace
-  binaryValidTrace_implies_valid_trace)
+  binaryValidTrace_implies_valid_trace BinaryTrace BinaryTrace.length_bounds
+  BinaryTrace.to_valid_trace BinaryTrace.to_binaryValidTrace
+  SuccessfulBinaryExecution SuccessfulBinaryExecution.toBinaryTrace
+  SuccessfulBinaryExecution.ofBinarySteps
+  SuccessfulBinaryExecution.toBinaryTrace_projects_valid_trace
+  SuccessfulBinaryExecution.toBinaryTrace_has_executable_fetch_pcs
+  SuccessfulEntryStep SuccessfulEntryStep.stateTrace
+  SuccessfulEntryStep.binaryStep_success
+  SuccessfulEntryStep.toSuccessfulBinaryExecution
+  SuccessfulEntryStep.toSuccessfulBinaryExecution_length
+  SuccessfulEntryStep.toSuccessfulBinaryExecution_nextPC_executable
+  SuccessfulEntryStep.toSuccessfulBinaryExecution_projects_valid_trace
+  SuccessfulEntryExtension SuccessfulEntryExtension.binaryStep_success
+  SuccessfulEntryExtension.currentPC_aligned
+  SuccessfulEntryExtension.currentPC_fetchable
+  SuccessfulEntryExtension.stateTrace
+  SuccessfulEntryExtension.toSuccessfulBinaryExecution
+  SuccessfulEntryExtension.toSuccessfulBinaryExecution_length
+  SuccessfulEntryExtension.toSuccessfulBinaryExecution_projects_valid_trace
+  SuccessfulEntryExtension.toSuccessfulBinaryExecution_projects_binaryValidTrace
+  SuccessfulEntryExtension.constructs_execution
+  SuccessfulEntryExtension.toSuccessfulExecutionExtension
+  SuccessfulEntryExtension.general_extension_length
+  SuccessfulEntryExtension.general_extension_projects_valid_trace
+  SuccessfulBinaryExecution.finalState appendStateTrace
+  appendStateTrace_get_prior appendStateTrace_get_appended
+  SuccessfulExecutionExtension SuccessfulExecutionExtension.currentState_aligned
+  SuccessfulExecutionExtension.currentState_fetchable
+  SuccessfulExecutionExtension.binaryStep_success
+  SuccessfulExecutionPlan SuccessfulExecutionPlan.iterate
+  SuccessfulExecutionPlan.toLength SuccessfulExecutionPlan.toLength_length
+  SuccessfulExecutionPlan.toLength_same_image
+  SuccessfulExecutionPlan.toLength_projects_valid_trace
+  SuccessfulExecutionPlan.toLength_projects_binaryValidTrace
+  entryJalLoopInstruction step_entryJalLoop
+  entrySetRegisterInstruction step_entrySetRegister step_jalLoop_preserves_state
+  LoadedELFImage.EntryJalLoop LoadedELFImage.entryJalLoopStep
+  LoadedELFImage.entryJalLoopPlan
+  LoadedELFImage.entryJalLoop_plan_constructs_length
+  LoadedELFImage.entryJalLoop_plan_constructs_binaryValidTrace
+  LoadedELFImage.entryAddiJalLoopPC LoadedELFImage.entryAddiJalLoopState
+  LoadedELFImage.entryAddiJalLoopState_x1
+  LoadedELFImage.EntryAddiJalLoop LoadedELFImage.entryAddiJalLoopStep
+  LoadedELFImage.entryAddiJalLoopPlan
+  LoadedELFImage.entryAddiJalLoopPlan_constructs_length
+  LoadedELFImage.entryAddiJalLoopPlan_constructs_binaryValidTrace
+  SuccessfulBinaryExecution.entryJalLoop_rows
+  SuccessfulBinaryExecution.entryJalLoop_finalState
+  SuccessfulBinaryExecution.entryJalLoopExtension
+  SuccessfulBinaryExecution.entryAddiJalLoop_rows
+  SuccessfulBinaryExecution.entryAddiJalLoop_finalState_cases
+  SuccessfulBinaryExecution.entryAddiJalLoopExtension
+  SuccessfulBinaryExecution.extend SuccessfulBinaryExecution.extend_length
+  SuccessfulBinaryExecution.extend_preserves_prior_states
+  SuccessfulBinaryExecution.extend_projects_valid_trace
+  SuccessfulBinaryExecution.extend_projects_binaryValidTrace)
 
 theorem x0_preserved_by_step (s : MachineState) (i : Instruction) (s' : MachineState)
     (_h : step s i = some s') : s'.regs.x0 = 0 := by

@@ -1,0 +1,92 @@
+{"log":
+ [{"message":
+   ".> LEAN_PATH=.\\.\\.lake\\build\\lib\\lean c:\\Users\\HARRY POTTER\\.elan\\toolchains\\leanprover--lean4---v4.19.0\\bin\\lean.exe .\\.\\.\\formal\\ZkRV32I\\Binary.lean -R .\\.\\.\\formal -o .\\.\\.lake\\build\\lib\\lean\\ZkRV32I\\Binary.olean -i .\\.\\.lake\\build\\lib\\lean\\ZkRV32I\\Binary.ilean -c .\\.\\.lake\\build\\ir\\ZkRV32I\\Binary.c --json",
+   "level": "trace"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:688:4: unused variable `witness`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:731:11: unused variable `rs1`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:731:15: unused variable `rs2`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:734:11: unused variable `rs1`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:734:15: unused variable `rs2`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:737:11: unused variable `rs1`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:737:15: unused variable `rs2`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:740:11: unused variable `rs1`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:740:15: unused variable `rs2`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:743:12: unused variable `rs1`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:743:16: unused variable `rs2`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:746:12: unused variable `rs1`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:746:16: unused variable `rs2`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1043:14: unused variable `hfetch`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1046:18: unused variable `hdecode`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1049:22: unused variable `hstep`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1091:14: unused variable `hfetch`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1094:18: unused variable `hdecode`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1097:22: unused variable `hstep`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1162:20: try 'simp' instead of 'simpa'\nnote: this linter can be disabled with `set_option linter.unnecessarySimpa false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1220:36: unused variable `hindex`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1223:43: unused variable `hslot`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1225:43: unused variable `hslot`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1227:44: unused variable `hslot`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1380:5: unused variable `program`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1401:5: unused variable `program`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1445:5: unused variable `program`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1465:5: unused variable `program`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"},
+  {"message":
+   ".\\.\\.\\formal\\ZkRV32I\\Binary.lean:1514:5: unused variable `program`\nnote: this linter can be disabled with `set_option linter.unusedVariables false`",
+   "level": "warning"}],
+ "depHash": "10130533970143299020"}

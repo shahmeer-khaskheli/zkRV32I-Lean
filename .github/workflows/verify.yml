@@ -1,0 +1,80 @@
+name: Formal Verification
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: formal-verification-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lean-verification:
+    name: Lean build and policy checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore Lean build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake
+            ~/.elan
+          key: lean-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-${{ hashFiles('formal/**/*.lean') }}
+          restore-keys: |
+            lean-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-
+            lean-${{ runner.os }}-
+
+      - name: Install pinned Lean toolchain
+        uses: leanprover/lean-action@v1
+        with:
+          lean-version: leanprover/lean4:v4.19.0
+
+      - name: Verify toolchain and Lake
+        shell: bash
+        run: |
+          lean --version
+          lake --version
+
+      - name: Run repository policy scripts
+        shell: bash
+        run: |
+          bash scripts/check_no_sorry.sh
+          bash scripts/check_no_admit.sh
+          bash scripts/check_axiom_policy.sh
+          bash scripts/check_isa_coverage.sh
+
+      - name: Enforce zero forbidden placeholders
+        shell: bash
+        run: |
+          sorry_count=$(grep -RInE --include='*.lean' --exclude-dir='.lake' \
+            '(^|[^[:alnum:]_])sorry([^[:alnum:]_]|$)' formal 2>/dev/null | wc -l | tr -d ' ')
+          admit_count=$(grep -RInE --include='*.lean' --exclude-dir='.lake' \
+            '(^|[^[:alnum:]_])admit([^[:alnum:]_]|$)' formal 2>/dev/null | wc -l | tr -d ' ')
+          axiom_count=$(grep -RInE --include='*.lean' --exclude-dir='.lake' \
+            '^[[:space:]]*((private|protected|unsafe|noncomputable)[[:space:]]+)*axiom[[:space:]]+' formal 2>/dev/null | wc -l | tr -d ' ')
+
+          echo "sorry count: ${sorry_count}"
+          echo "admit count: ${admit_count}"
+          echo "axiom declaration count: ${axiom_count}"
+
+          test "$sorry_count" -eq 0
+          test "$admit_count" -eq 0
+          test "$axiom_count" -eq 0
+
+      - name: Build Lean library
+        shell: bash
+        run: lake build
