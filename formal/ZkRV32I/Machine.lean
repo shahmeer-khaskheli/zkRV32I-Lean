@@ -27,6 +27,20 @@ end MachineState
 def nextPC (state : MachineState) : Word32 :=
   Word32.add state.pc 4
 
+def pcAligned (state : MachineState) : Prop :=
+  state.pc.toNat % 4 = 0
+
+theorem nextPC_preserves_pcAligned (state : MachineState)
+    (hpc : pcAligned state) : pcAligned { state with pc := nextPC state } := by
+  change state.pc.toNat % 4 = 0 at hpc
+  unfold pcAligned nextPC Word32.add
+  rw [UInt32.toNat_add]
+  have hfour : UInt32.toNat (4 : UInt32) = 4 := by decide
+  rw [hfour]
+  have hpow : 2 ^ 32 = 2 ^ 30 * 4 := by decide
+  rw [hpow, Nat.mod_mul_left_mod]
+  omega
+
 def regRead (state : MachineState) (index : Fin 32) : Word32 :=
   state.regs.read index
 
@@ -69,6 +83,19 @@ def storeValue (state : MachineState) (pc : Word32) (address : Word32)
   let memory ← Memory.store state.memory address.toNat width alignment value
   pure { state with pc := pc, memory := memory }
 
+theorem storeValue_preserves_pcAligned (state next : MachineState) (pc address : Word32)
+    (width alignment : Nat) (value : Word32)
+    (hpc : pcAligned { state with pc := pc })
+    (hstep : storeValue state pc address width alignment value = some next) :
+    pcAligned next := by
+  unfold storeValue at hstep
+  cases hstore : Memory.store state.memory address.toNat width alignment value with
+  | none => simp [hstore] at hstep
+  | some memory =>
+      simp [hstore] at hstep
+      cases hstep
+      exact hpc
+
 def branch (state : MachineState) (condition : Bool) (immediate : Word32) :
     Option MachineState := do
   let target := if condition then Word32.add state.pc immediate else nextPC state
@@ -76,7 +103,7 @@ def branch (state : MachineState) (condition : Bool) (immediate : Word32) :
   else pure { state with pc := target }
 
 def step (state : MachineState) (instruction : Instruction) : Option MachineState :=
-  if state.terminal == .halted then none else
+  if state.terminal == .halted || state.pc.toNat % 4 != 0 then none else
   let pc' := nextPC state
   match instruction with
   | .lui rd imm => some (regWrite state pc' rd imm)
@@ -173,6 +200,196 @@ def step (state : MachineState) (instruction : Instruction) : Option MachineStat
       some (regWrite state pc' rd (wordAnd (regRead state rs1) (regRead state rs2)))
   | .fence => some { state with pc := pc' }
   | .ecall | .ebreak => some { state with terminal := .halted }
+
+theorem step_misaligned_pc_none (state : MachineState) (instruction : Instruction)
+    (hpc : ¬ pcAligned state) : step state instruction = none := by
+  have hpc' : state.pc.toNat % 4 ≠ 0 := by
+    change ¬ state.pc.toNat % 4 = 0 at hpc
+    exact hpc
+  simp [step, pcAligned, hpc']
+
+theorem step_preserves_pcAligned (state : MachineState) (instruction : Instruction)
+    (next : MachineState) (hpc : pcAligned state)
+    (hstep : step state instruction = some next) : pcAligned next := by
+  by_cases hhalt : state.terminal = .halted
+  · simp [step, hhalt] at hstep
+  · have hpcEq : state.pc.toNat % 4 = 0 := hpc
+    have hpcBool : (state.pc.toNat % 4 != 0) = false := by simp [hpcEq]
+    cases instruction with
+    | lui rd imm =>
+        simp [step, hhalt, hpcBool] at hstep
+        cases hstep
+        change pcAligned { state with pc := nextPC state, regs := state.regs.write rd imm }
+        exact nextPC_preserves_pcAligned state hpc
+    | auipc rd imm =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | jal rd imm =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        rcases hstep with ⟨htarget, hstate⟩
+        cases hstate
+        exact htarget
+    | jalr rd rs1 imm =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        rcases hstep with ⟨htarget, hstate⟩
+        cases hstate
+        exact htarget
+    | beq rs1 rs2 imm =>
+        simp [step, branch, hhalt, hpcBool] at hstep
+        rcases hstep with ⟨htarget, hstate⟩
+        cases hstate
+        exact htarget
+    | bne rs1 rs2 imm =>
+        simp [step, branch, hhalt, hpcBool] at hstep
+        rcases hstep with ⟨htarget, hstate⟩
+        cases hstate
+        exact htarget
+    | blt rs1 rs2 imm =>
+        simp [step, branch, hhalt, hpcBool] at hstep
+        rcases hstep with ⟨htarget, hstate⟩
+        cases hstate
+        exact htarget
+    | bge rs1 rs2 imm =>
+        simp [step, branch, hhalt, hpcBool] at hstep
+        rcases hstep with ⟨htarget, hstate⟩
+        cases hstate
+        exact htarget
+    | bltu rs1 rs2 imm =>
+        simp [step, branch, hhalt, hpcBool] at hstep
+        rcases hstep with ⟨htarget, hstate⟩
+        cases hstate
+        exact htarget
+    | bgeu rs1 rs2 imm =>
+        simp [step, branch, hhalt, hpcBool] at hstep
+        rcases hstep with ⟨htarget, hstate⟩
+        cases hstate
+        exact htarget
+    | lb rd rs1 imm =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        rcases hstep with ⟨value, _, hstate⟩
+        cases hstate
+        exact nextPC_preserves_pcAligned state hpc
+    | lh rd rs1 imm =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        rcases hstep with ⟨value, _, hstate⟩
+        cases hstate
+        exact nextPC_preserves_pcAligned state hpc
+    | lw rd rs1 imm =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        rcases hstep with ⟨value, _, hstate⟩
+        cases hstate
+        exact nextPC_preserves_pcAligned state hpc
+    | lbu rd rs1 imm =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        rcases hstep with ⟨value, _, hstate⟩
+        cases hstate
+        exact nextPC_preserves_pcAligned state hpc
+    | lhu rd rs1 imm =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        rcases hstep with ⟨value, _, hstate⟩
+        cases hstate
+        exact nextPC_preserves_pcAligned state hpc
+    | sb rs1 rs2 imm =>
+        simp [step, hhalt, hpcBool] at hstep
+        apply storeValue_preserves_pcAligned state next (nextPC state) _ _ _ _ ?_ hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | sh rs1 rs2 imm =>
+        simp [step, hhalt, hpcBool] at hstep
+        apply storeValue_preserves_pcAligned state next (nextPC state) _ _ _ _ ?_ hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | sw rs1 rs2 imm =>
+        simp [step, hhalt, hpcBool] at hstep
+        apply storeValue_preserves_pcAligned state next (nextPC state) _ _ _ _ ?_ hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | addi rd rs1 imm =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | slti rd rs1 imm =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | sltiu rd rs1 imm =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | xori rd rs1 imm =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | ori rd rs1 imm =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | andi rd rs1 imm =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | slli rd rs1 shamt =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | srli rd rs1 shamt =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | srai rd rs1 shamt =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | add rd rs1 rs2 =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | sub rd rs1 rs2 =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | sll rd rs1 rs2 =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | slt rd rs1 rs2 =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | sltu rd rs1 rs2 =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | xor rd rs1 rs2 =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | srl rd rs1 rs2 =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | sra rd rs1 rs2 =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | or rd rs1 rs2 =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | and rd rs1 rs2 =>
+        simp [step, hhalt, hpcBool, regWrite] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | fence =>
+        simp [step, hhalt, hpcBool] at hstep
+        cases hstep
+        exact nextPC_preserves_pcAligned state hpc
+    | ecall =>
+        simp [step, hhalt, hpcBool] at hstep
+        cases hstep
+        exact hpc
+    | ebreak =>
+        simp [step, hhalt, hpcBool] at hstep
+        cases hstep
+        exact hpc
 
 def execute (state : MachineState) (word : Word32) : Option ExecutionOutcome := do
   let instruction ← (decode word).toOption

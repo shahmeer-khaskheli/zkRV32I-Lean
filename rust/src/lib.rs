@@ -1225,4 +1225,30 @@ mod tests {
             Err(ExecutionError::MisalignedInstructionAddress)
         );
     }
+
+    #[test]
+    fn step_rejects_misaligned_input_pc_and_preserves_alignment_on_success() {
+        let instruction = Instruction::Addi {
+            rd: 1,
+            rs1: 0,
+            imm: 1,
+        };
+        for pc in [1, 2, 3] {
+            assert_eq!(
+                step(MachineState::<16>::new(pc, 0), instruction),
+                Err(ExecutionError::MisalignedInstructionAddress)
+            );
+        }
+
+        let aligned = step(MachineState::<16>::new(0xffff_fffc, 0), instruction).unwrap();
+        assert_eq!(aligned.pc, 0);
+        assert_eq!(aligned.pc & 0b11, 0);
+
+        let mut halted = MachineState::<16>::new(2, 0);
+        halted.terminal = TerminalState::Halted;
+        assert_eq!(
+            step(halted, instruction),
+            Err(ExecutionError::Halted)
+        );
+    }
 }

@@ -675,7 +675,7 @@ theorem sb_finite_store_step_correspondence {size : Nat}
   · simp [rustFiniteMemoryStep, hpc, hrunning, address, value, rustNext, hrustStore]
   · simp [rustFiniteStepSpec, hpc, hrunning, address, value, rustNext, hrustStore,
       RustFiniteState.toLean]
-  · simp [step, storeValue, regRead, hrunning, address, value, leanNext, hleanStore,
+  · simp [step, storeValue, regRead, hrunning, hpc, address, value, leanNext, hleanStore,
       nextPC, RustFiniteState.toLean]
   · exact ⟨rfl, rfl, rfl, hrefines⟩
 
@@ -701,7 +701,7 @@ theorem sh_finite_store_step_correspondence {size : Nat}
   · simp [rustFiniteMemoryStep, hpc, hrunning, address, value, rustNext, hrustStore]
   · simp [rustFiniteStepSpec, hpc, hrunning, address, value, rustNext, hrustStore,
       RustFiniteState.toLean]
-  · simp [step, storeValue, regRead, hrunning, address, value, leanNext, hleanStore,
+  · simp [step, storeValue, regRead, hrunning, hpc, address, value, leanNext, hleanStore,
       nextPC, RustFiniteState.toLean]
   · exact ⟨rfl, rfl, rfl, hrefines⟩
 
@@ -727,7 +727,7 @@ theorem sw_finite_store_step_correspondence {size : Nat}
   · simp [rustFiniteMemoryStep, hpc, hrunning, address, value, rustNext, hrustStore]
   · simp [rustFiniteStepSpec, hpc, hrunning, address, value, rustNext, hrustStore,
       RustFiniteState.toLean]
-  · simp [step, storeValue, regRead, hrunning, address, value, leanNext, hleanStore,
+  · simp [step, storeValue, regRead, hrunning, hpc, address, value, leanNext, hleanStore,
       nextPC, RustFiniteState.toLean]
   · exact ⟨rfl, rfl, rfl, hrefines⟩
 

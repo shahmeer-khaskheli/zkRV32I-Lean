@@ -17,7 +17,7 @@ verify-firmware: firmware lean
 	lake env lean --run scripts/verify_elf.lean target/riscv32i-unknown-none-elf/release/firmware
 
 test:
-	cargo check --tests --manifest-path rust/Cargo.toml
+	cargo test --manifest-path rust/Cargo.toml --target $$(rustc -vV | sed -n 's/^host: //p')
 
 differential:
 	cargo run --manifest-path adversarial/Cargo.toml

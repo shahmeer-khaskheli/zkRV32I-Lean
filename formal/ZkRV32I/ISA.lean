@@ -226,6 +226,13 @@ theorem decode_addi_x4_x1_four :
   rfl
 
 set_option maxRecDepth 100000 in
+theorem decode_add_x2_x1_x1 :
+    decode (Word32.ofNat 0x00108133) =
+      .ok (.add (Fin.mk 2 (by decide)) (Fin.mk 1 (by decide))
+        (Fin.mk 1 (by decide))) := by
+  rfl
+
+set_option maxRecDepth 100000 in
 theorem decode_ecall_word :
     decode (Word32.ofNat 0x00000073) = .ok .ecall := by
   rfl

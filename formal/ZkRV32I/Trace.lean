@@ -25,7 +25,7 @@ def singleton (state : MachineState) : Trace where
 end Trace
 
 def initial (state : MachineState) : Prop :=
-  ∃ pc memory, state = MachineState.initial pc memory
+  ∃ pc memory, state = MachineState.initial pc memory ∧ pcAligned state
 
 def terminal (state : MachineState) : Prop :=
   state.terminal = TerminalState.halted
@@ -63,6 +63,43 @@ theorem adjacent_rows_are_valid_transitions (trace : Trace) (index : Nat)
       (trace.get index (Nat.lt_trans (Nat.lt_succ_self index) hindex))
       (trace.get (index + 1) hindex) := by
   exact htrace.2.2 index hindex
+
+theorem valid_trace_rows_pcAligned (trace : Trace) (htrace : valid_trace trace)
+    (index : Nat) (hindex : index < trace.length) :
+    pcAligned (trace.get index hindex) := by
+  rcases htrace with ⟨hnonempty, hinitial, hsteps⟩
+  have hrows : ∀ index (hindex : index < trace.length),
+      pcAligned (trace.get index hindex) := by
+    intro index
+    induction index with
+    | zero =>
+        intro hindex
+        rcases hinitial with ⟨pc, memory, _, hAligned⟩
+        simpa [Trace.get] using hAligned
+    | succ index ih =>
+        intro hindex
+        have hprev : index < trace.length :=
+          Nat.lt_trans (Nat.lt_succ_self index) hindex
+        have hprevAligned := ih hprev
+        obtain ⟨instruction, hstep⟩ := hsteps index (by omega)
+        exact step_preserves_pcAligned _ instruction _ hprevAligned hstep
+  exact hrows index hindex
+
+theorem valid_trace_halted_only_at_end (trace : Trace) (htrace : valid_trace trace)
+    (index : Nat) (hindex : index < trace.length)
+    (hhalted : terminal (trace.get index hindex)) :
+    index + 1 = trace.length := by
+  by_cases hlast : index + 1 = trace.length
+  · exact hlast
+  · have hnext : index + 1 < trace.length := by omega
+    obtain ⟨instruction, hstep⟩ := htrace.2.2 index hnext
+    have htermBool : ((trace.get index hindex).terminal == .halted) = true := by
+      simp [terminal] at hhalted
+      simp [hhalted]
+    have hnone : step (trace.get index hindex) instruction = none := by
+      simp [step, htermBool]
+    rw [hnone] at hstep
+    contradiction
 
 theorem x0_zero_throughout_valid_trace (trace : Trace) (index : Nat)
     (_htrace : valid_trace trace) (hindex : index < trace.length) :

@@ -1,9 +1,11 @@
 import ZkRV32I.Circuit.Constraints
 import ZkRV32I.Refinement.Step
+import ZkRV32I.Refinement.AddiBridge
 import ZkRV32I.Source
 import ZkRV32I.Hardware.SingleCycle
 import ZkRV32I.Refinement.Memory
 import ZkRV32I.Binary
+import ZkRV32I.Transcript
 
 export ZkRV32I (Word32 RegisterFile Memory Instruction MachineState TerminalState
   ExecutionOutcome DecodeError decode step MAX_TRACE Row Trace initial terminal valid_transition
@@ -25,6 +27,11 @@ export ZkRV32I.Refinement (RustState RustInstruction interpret related
   finiteRelated rustFiniteStepSpec rustFiniteInterpreterStep
   isCoveredInstruction)
 
+export ZkRV32I.Refinement (AddiBridgeSnapshot AddiBridgeOperands AddiBridgeError
+  AddiBridgeOutcome AddiBridgeRecord checkAddiBridgeRecord
+  checkAddiBridgeRecord_sound AddBridgeOperands AddBridgeRecord
+  checkAddBridgeRecord checkAddBridgeRecord_sound)
+
 export ZkRV32I.Refinement (RustSourceState rustSourceStep
   rust_to_rv32i_refinement rustSourceStore_success_validRange)
 
@@ -35,19 +42,102 @@ export ZkRV32I.Refinement (RustMemory RustMemoryError RustMemory.Refines
 export ZkRV32I.Binary (ELF32Header ELF32ProgramHeader ELF32Image
   readU16LE readU32LE parseELF32Header parseELF32ProgramHeader
   readELF32ProgramHeaders parseELF32 loadSegment loadELF32Segments
+  rv32CanonicalBaseMemory BinaryRejectionReason binaryRejectionReason
+  BinaryClassification classifyRV32Binary LoadableRV32IBinary
+  AcceptedRV32IBinary RejectedBinary
+  rv32_loadability_classifier_total loadableRV32Binary_implies_loadable
+  loadableRV32Binary_implies_loadedELFImage
+  FullyVerifiedBinary AcceptedTerminalOutcomeVerification
+  AcceptedOutcomeVerification
+  loadableRV32Binary_haltedEntryStep_toFullyVerified
+  loadableRV32Binary_outcome_toFullyVerified
+  loadableRV32Binary_maximalPrefix_toFullyVerified
+  loadableRV32Binary_implies_FullyVerifiedBinary
+  rv32LoadableBinary_rejected_or_fullyVerified
+  FunctionallyCorrectBinary SuccessfulHaltOutcomeEvidence
+  loadableRV32Binary_successfulExecution_toFunctionallyCorrect
+  loadableRV32Binary_successfulHaltOutcome_toFunctionallyCorrect
+  LoadableRV32IBinarySuccessfulHalt
+  loadableRV32IBinarySuccessfulHalt_toFunctionallyCorrect
+  loadableRV32IBinarySuccessfulHalt_implies_functionallyCorrect
+  acceptedRV32IBinary_implies_functionallyCorrect
+  rv32Binary_rejected_or_functionallyCorrect
+  entryAddiFourELF32_functionally_correct
+  entryAddiFourELF32_functionally_correct_exists
+  entryAddiFourCanonicalAccepted
+  entryAddiFourELF32Bytes entryAddiFourCodeBytes
+  entryEcallELF32Bytes entryEcallCanonicalAccepted
+  entryEcallCanonical_functionallyCorrect
+  entryALUEcallELF32Bytes entryALUEcallCanonicalAccepted
+  entryALUEcallCanonical_functionallyCorrect
+  entryALU2EcallELF32Bytes entryALU2EcallCanonicalAccepted
+  entryALU2EcallCanonical_functionallyCorrect
+  decodeBitVec32_add_x2_x1_x1 decodeBitVec32_add_x3_x2_x2
+  NonFaultingBoundedExecutionEvidence
+  NonFaultingBoundedExecutionEvidence.toFullyVerifiedBinary
+  BoundedBinaryStepOutcome boundedLoadedBinaryStep
+  boundedLoadedBinaryExecution BinaryPrefixStop
+  MaximalBinaryExecutionPrefix maximalHaltedPrefix maximalTimeoutPrefix
+  AcceptedMaximalBinaryPrefixEvidence
+  AcceptedMaximalBinaryPrefixEvidence.toFullyVerifiedBinary
   ELF32Image.loadMemory loadELF32Segments_success_preserves_geometry
   ELF32Image.loadMemory_success_preserves_geometry
+  loadSegmentBytes loadSegmentBytes_commute_of_disjoint
+  loadSegment_success_eq_bytes successful_disjoint_segment_loads_commute
   ElfLoadSpec ElfLoadableImage elfFileOffsetAddress
+  loadableSegmentBase ELF32Image.hasExecutableEntry
+  BoundedELFLoadableImage BoundedELFLoadableImage.toLoadedELFImage
+  parseBoundedELF32
   elfLoadableSegmentBoundsHold elfLoadableSegmentsBounded
   elfMemoryRangesDisjoint elfLoadableSegmentsDisjoint
   elfToInitialMachineState elf_initial_state_correct
+  AcceptedELFProfile AcceptedELFProfile.toElfLoadableImage
+  AcceptedELFProfile.parse_success AcceptedELFProfile.parse_yields_loadable
+  AcceptedELFProfile.toLoadedELFImage
+  AcceptedELFProfile.universal_profile_bridge
+  TotalLoadedBinaryOutcome loadedELFImage_total_bounded_outcome
+  loadableRV32Binary_total_bounded_outcome
+  TotalOutcomeSuccessfulPath TotalOutcomePathExecution
+  TotalLoadedBinaryOutcome.toSuccessfulPath
+  TotalOutcomeSuccessfulPath.toExecution
+  TotalLoadedBinaryOutcome.toSuccessfulBinaryExecution
   segmentFits segmentFits_preserves_address_bounds
   loadSegment_success_preserves_geometry loadSegment_success_has_bounded_addresses
   LoadedELFImage LoadedELFImage.memory_preserves_geometry
   LoadedELFImage.entry_fetch32_isSome LoadedELFImage.entry_fetchDecode_isSome
   LoadedELFImage.executableAddress
   LoadedELFImage.entry_is_executable LoadedELFImage.HasSuccessfulEntryStep
+  LoadedELFImage.EntryEcall LoadedELFImage.EntryAddiEcall
+  LoadedELFImage.EntryAddiFour
+  StraightLineALUInstruction StraightLineALUInstruction.step_properties
+  LoadedELFImage.EntryALUEcall
+  LoadedELFImage.EntryALU2Ecall
+  LoadedELFImage.EntryALUEcall.intermediateState
+  LoadedELFImage.EntryALUEcall.intermediateState_spec
+  LoadedELFImage.EntryALUEcall.finalState
+  LoadedELFImage.EntryALUEcall.stateAt
+  LoadedELFImage.EntryALUEcall.stateTrace
+  LoadedELFImage.EntryALUEcall.toSuccessfulBinaryExecution
+  LoadedELFImage.EntryALUEcall.toSuccessfulBinaryExecution_halts
+  LoadedELFImage.EntryALU2Ecall.stateAfterFirst
+  LoadedELFImage.EntryALU2Ecall.stateAfterFirst_spec
+  LoadedELFImage.EntryALU2Ecall.stateAfterSecond
+  LoadedELFImage.EntryALU2Ecall.stateAfterSecond_spec
+  LoadedELFImage.EntryALU2Ecall.finalState
+  LoadedELFImage.EntryALU2Ecall.stateAt
+  LoadedELFImage.EntryALU2Ecall.stateTrace
+  LoadedELFImage.EntryALU2Ecall.toSuccessfulBinaryExecution
+  LoadedELFImage.EntryALU2Ecall.toSuccessfulBinaryExecution_halts
+  LoadedELFImage.EntryAddiEcall.stateAfterAddi
+  LoadedELFImage.EntryAddiEcall.finalState
+  LoadedELFImage.EntryAddiEcall.stateAt
+  LoadedELFImage.EntryAddiEcall.stateTrace
+  LoadedELFImage.EntryAddiEcall.toSuccessfulBinaryExecution
+  LoadedELFImage.EntryAddiEcall.toSuccessfulBinaryExecution_halts
   LoadedELFImage.hasSuccessfulEntryStep_constructs_execution
+  entryAddiFourELF32_parseELF32_exact
+  entryAddiFourELF32_parse_loaded_fields
+  entryAddiFourELF32_parser_to_valid_trace
   decodeBitVec32 fetch32 fetchDecode binaryStep binaryValidTransition
   fetch32_success_implies_aligned_and_valid
   fetchDecode_uses_isa_decoder binaryStep_eq_isaStep_of_fetch_decode
@@ -59,6 +149,9 @@ export ZkRV32I.Binary (ELF32Header ELF32ProgramHeader ELF32Image
   binaryValidTransition_implies_valid_transition binaryValidTrace
   binaryValidTrace_implies_valid_trace BinaryTrace BinaryTrace.length_bounds
   BinaryTrace.to_valid_trace BinaryTrace.to_binaryValidTrace
+  BinaryTrace.finalState
+  FunctionallyCorrectBinary.binaryTrace_finalState_eq_execution_finalState
+  FunctionallyCorrectBinary.binaryTrace_finalState_halted
   SuccessfulBinaryExecution SuccessfulBinaryExecution.toBinaryTrace
   SuccessfulBinaryExecution.ofBinarySteps
   SuccessfulBinaryExecution.toBinaryTrace_projects_valid_trace
@@ -113,6 +206,19 @@ export ZkRV32I.Binary (ELF32Header ELF32ProgramHeader ELF32Image
   SuccessfulBinaryExecution.extend_preserves_prior_states
   SuccessfulBinaryExecution.extend_projects_valid_trace
   SuccessfulBinaryExecution.extend_projects_binaryValidTrace)
+
+export ZkRV32I.Binary.TranscriptV1 (Transcript VerifiedPrefix VerifiedTranscript
+  VerifiedStopReason rustFiniteView rustFiniteView_related
+  VerifiedRows.stepAt_finite_refinement
+  stopMatches stopMatches_fuelLimit_fields
+  parse check checkPrefix accepted check_sound accepted_sound
+  VerifiedPrefix.binaryTrace_finalState
+  VerifiedTranscript.halt_implies_final_state_halted
+  VerifiedTranscript.notHalt_implies_final_state_running
+  VerifiedStopReason.notHalt_implies_running
+  accepted_steps_refine_finite_model
+  accepted_halt_stop_implies_functionallyCorrect_terminal
+  accepted_halt_stop_implies_FunctionallyCorrectBinary_terminal)
 
 theorem x0_preserved_by_step (s : MachineState) (i : Instruction) (s' : MachineState)
     (_h : step s i = some s') : s'.regs.x0 = 0 := by

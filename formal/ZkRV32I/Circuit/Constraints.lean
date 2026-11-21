@@ -70,7 +70,7 @@ theorem constraints_sound
     (hconstraints : ConstraintTransition before after) :
     ZkRV32I.Binary.binaryTransition before.toMachineState after.toMachineState := by
   obtain ⟨hfetch, hdecode, hstep⟩ := hconstraints
-  exact ⟨⟨before.instructionWord, before.instruction, hfetch, hdecode, hstep⟩, trivial⟩
+  exact ⟨⟨before.instructionWord, before.instruction, hfetch, hdecode, hstep⟩⟩
 
 theorem binaryTransition_complete
     (beforeState afterState : MachineState)
@@ -79,7 +79,7 @@ theorem binaryTransition_complete
       before.toMachineState = beforeState ∧
       after.toMachineState = afterState ∧
       ConstraintTransition before after := by
-  obtain ⟨witness, _⟩ := htransition
+  obtain ⟨witness⟩ := htransition
   let before : ConstraintRow :=
     ConstraintRow.fromMachineState beforeState witness.instruction witness.word
   let after : ConstraintRow :=
