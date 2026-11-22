@@ -13,41 +13,54 @@ concurrency:
 
 jobs:
   verify:
+    name: Full verification
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.97.1
+      - name: Cache Lean build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake
+            ~/.elan
+          key: lean-${{ runner.os }}-${{ hashFiles('lean-toolchain', 'lakefile.toml', 'lake-manifest.json') }}-${{ hashFiles('formal/**/*.lean') }}
+          restore-keys: |
+            lean-${{ runner.os }}-
 
-      - name: Install firmware target
-        run: rustup target add riscv32i-unknown-none-elf
+      - name: Cache Cargo dependencies and build outputs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+            adversarial/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.toml', '**/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
 
-      - name: Install Lean toolchain
+      - name: Install pinned Lean toolchain
         uses: leanprover/lean-action@v1
         with:
           lean-version: leanprover/lean4:v4.19.0
 
-      - name: Check Lean source placeholders
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@1.97.1
+
+      - name: Install RISC-V target
+        run: rustup target add riscv32i-unknown-none-elf
+
+      - name: Verify pinned toolchains
         run: |
-          bash scripts/check_no_sorry.sh
-          bash scripts/check_no_admit.sh
-          bash scripts/check_isa_coverage.sh
+          lean --version
+          lake --version
+          rustc --version
+          cargo --version
+          rustup target list --installed
 
-      - name: Build Lean proofs
-        run: lake build
-
-      - name: Check Lean axiom policy
-        run: bash scripts/check_axiom_policy.sh
-
-      - name: Check Rust safety and allocation policies
-        run: |
-          bash scripts/check_no_unsafe.sh
-          bash scripts/check_alloc_policy.sh
-
-      - name: Check Rust workspace
-        run: cargo check --locked
-
-      - name: Run Rust tests
-        run: cargo test --locked --target x86_64-unknown-linux-gnu
+      - name: Run full verification gate
+        run: bash scripts/verify_all.sh

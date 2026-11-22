@@ -17,7 +17,9 @@ bounded ELF
 
 Lean proves segment geometry and pairwise-disjoint write commutativity.
 The transcript checker verifies initial state and every row. Stop-reason
-definitions distinguish halt, fuel limit, and fault.
+definitions distinguish halt, fuel limit, and fault. `accepted_halt_stop`
+theorems connect an accepted halt to the terminal state of the corresponding
+binary trace model.
 
 ## Refinement evidence
 

@@ -12,17 +12,42 @@
 
 ## Next milestone
 
-The next work must strengthen one boundary at a time:
+## Milestone 1: Full RV32I conformance and extended memory/ABI properties
 
-1. Add a Rust or ELF loader theorem based on the exact host implementation.
-2. Replace the transcript trust assumption with independently produced
-   execution evidence or a signed runner attestation.
-3. Expand ELF coverage only after the bounded profile is explicitly preserved.
-4. Extend instruction and fault coverage from selected modeled cases to a
-   defined RV32I conformance scope.
-5. Connect a verified machine trace to a real constraint or circuit model.
-6. Add cryptographic proof-system verification only after the constraint
-   construction is complete.
+1. Define an explicit RV32I conformance statement and instrument remaining
+   instruction families.
+2. Add alignment, bounds, arithmetic wraparound, control-flow, and terminal
+   behavior tests for all supported encodings.
+3. Extend ELF coverage beyond the bounded profile only behind explicit proofs
+   for segment overlap, entry validity, permissions, and loader geometry.
+4. Define and prove ABI/state properties that are required for firmware and
+   executable entry points.
+5. Preserve `#![no_std]` and `#![forbid(unsafe_code)]` in Rust throughout.
+
+## Milestone 2: Rust and ELF binary equivalence
+
+1. Add a mechanically checked bridge for Rust host parsing and execution, not
+   a separate test-only specification.
+2. Connect emitted ELF bytes, loaded memory, and instruction words to a
+   Lean-checked binary trace.
+3. Replace transcript-only runner evidence with a stronger independent
+   execution witness or reproducible binary attestation.
+4. State compiler/linker bounds explicitly or prove the required compilation
+   and linkage properties.
+
+## Milestone 3: Algebraic constraint soundness
+
+1. Select a constraint framework compatible with zkLean/cLean or an
+   equivalent defined target.
+2. Implement concrete AIR/R1CS-style constraints for the bounded machine
+   transition and trace shape.
+3. Prove constraint soundness and valid-trace completeness against
+   `Machine.step`, `Trace.valid_trace`, and `BinaryTrace`.
+4. Add cryptographic prover/verifier integration only after the constraint
+   proofs are complete and independently reviewable.
+
+No milestone is complete until it has kernel-checked Lean proofs and a passing
+`bash scripts/verify_all.sh` run.
 
 No milestone should be described as complete until it has kernel-checked
 proofs and a passing `bash scripts/verify_all.sh` run.

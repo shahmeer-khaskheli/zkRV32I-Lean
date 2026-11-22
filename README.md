@@ -1,5 +1,7 @@
 # zkRV32I-Lean
 
+[![CI](https://github.com/shahmeer-khaskheli/zkRV32I-Lean/actions/workflows/ci.yml/badge.svg)](https://github.com/shahmeer-khaskheli/zkRV32I-Lean/actions/workflows/ci.yml)
+
 zkRV32I-Lean is an active engineering and formal-methods project for an
 RV32I execution model, bounded ELF32 loading, and transcript checking. The
 project combines Lean proofs, a `no_std` Rust execution core, and mutation
@@ -29,6 +31,34 @@ The following status was verified on 2026-11-21 with
 | RISC-V build check | `riscv32i-unknown-none-elf` Cargo check passed |
 
 These counts describe the current run, not a claim of universal correctness.
+
+## Proof Example
+
+The following theorem is copied from `formal/ZkRV32I/Trace.lean`. It proves
+that every row of a valid trace remains 4-byte aligned through its transitions.
+
+```lean
+theorem valid_trace_rows_pcAligned (trace : Trace) (htrace : valid_trace trace)
+    (index : Nat) (hindex : index < trace.length) :
+    pcAligned (trace.get index hindex) := by
+  rcases htrace with ⟨hnonempty, hinitial, hsteps⟩
+  have hrows : ∀ index (hindex : index < trace.length),
+      pcAligned (trace.get index hindex) := by
+    intro index
+    induction index with
+    | zero =>
+        intro hindex
+        rcases hinitial with ⟨pc, memory, _, hAligned⟩
+        simpa [Trace.get] using hAligned
+    | succ index ih =>
+        intro hindex
+        have hprev : index < trace.length :=
+          Nat.lt_trans (Nat.lt_succ_self index) hindex
+        have hprevAligned := ih hprev
+        obtain ⟨instruction, hstep⟩ := hsteps index (by omega)
+        exact step_preserves_pcAligned _ instruction _ hprevAligned hstep
+  exact hrows index hindex
+```
 
 ## Verification Pipeline
 
@@ -127,24 +157,24 @@ machine ran exactly that many steps or that a hardware limit value is correct.
 
 ## Exact Prerequisites
 
-Use WSL/Linux for the verified commands below.
+Use Linux, macOS, or WSL. The repository pins Lean 4.19.0 in
+`lean-toolchain` and Rust 1.97.1 in `rust-toolchain.toml`. Run commands from
+the repository root.
 
 | Tool | Current verified configuration |
 |---|---|
 | Lean | `leanprover/lean4:v4.19.0` |
-| Elan cache | `/mnt/d/elan-linux` |
-| Lake binary | `/mnt/d/elan-linux/toolchains/leanprover--lean4---v4.19.0/bin/lake` |
-| Rust | `rustc`/`cargo` 1.97.1 in the active environment |
+| Lake | `lake` on `PATH`, or `${LAKE_BIN:-lake}` when explicitly configured |
+| Rust | `rustc`/`cargo` 1.97.1 |
 | Host target | `$(rustc -vV | sed -n 's/^host: //p')` |
 | RISC-V target | `riscv32i-unknown-none-elf` |
 
-Set the environment for the pinned WSL toolchain:
+Install the pinned toolchains:
 
 ```bash
-export ELAN_HOME=/mnt/d/elan-linux
-export LAKE_BIN=/mnt/d/elan-linux/toolchains/leanprover--lean4---v4.19.0/bin/lake
-export PATH="$ELAN_HOME/toolchains/leanprover--lean4---v4.19.0/bin:$PATH"
-cd "/mnt/c/Users/HARRY POTTER/zk-verifier-core"
+curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+rustup toolchain install 1.97.1
+rustup target add riscv32i-unknown-none-elf
 ```
 
 ## Verified Commands
@@ -152,7 +182,7 @@ cd "/mnt/c/Users/HARRY POTTER/zk-verifier-core"
 Build Lean:
 
 ```bash
-"$LAKE_BIN" build
+${LAKE_BIN:-lake} build
 ```
 
 Run the Lean axiom policy:
@@ -197,7 +227,7 @@ cargo build --locked --manifest-path adversarial/Cargo.toml \
 Run the complete gate:
 
 ```bash
-LAKE_BIN="$LAKE_BIN" bash scripts/verify_all.sh
+bash scripts/verify_all.sh
 ```
 
 `verify_all.sh` runs the source policies, Lean build, axiom audit,

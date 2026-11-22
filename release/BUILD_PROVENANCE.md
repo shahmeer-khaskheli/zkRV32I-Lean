@@ -2,10 +2,10 @@
 
 ## Verified configuration
 
-- OS: WSL/Linux against `/mnt/c/Users/HARRY POTTER/zk-verifier-core`
+- OS: WSL/Linux for the last local verification run
 - Lean: 4.19.0
-- Elan cache: `/mnt/d/elan-linux`
-- Lake: `/mnt/d/elan-linux/toolchains/leanprover--lean4---v4.19.0/bin/lake`
+- Elan: installed through the standard Elan toolchain manager
+- Lake: resolved from `LAKE_BIN`, `lake`, or `lake.exe`
 - Rust: 1.97.1 as reported by the verified environment
 - RISC-V target: `riscv32i-unknown-none-elf`
 
@@ -14,7 +14,7 @@
 The full gate is:
 
 ```bash
-LAKE_BIN="$LAKE_BIN" bash scripts/verify_all.sh
+bash scripts/verify_all.sh
 ```
 
 The gate passed on 2026-11-21. It runs source policy checks, Lean build,

@@ -21,7 +21,8 @@ The most recent `bash scripts/verify_all.sh` run passed with:
 - 8 transcript mutation cases;
 - 3 valid fault-stop cases.
 
-## Not claimed
+## Scope and open boundaries
 
-These additions do not prove Rust source extraction, compiler output
-equivalence, hardware execution, or cryptographic proof-system correctness.
+These contributions do not prove Rust source extraction, compiler output
+equivalence, linker correctness, arbitrary ELF loading, hardware execution,
+complete RV32I conformance, or cryptographic proof-system correctness.

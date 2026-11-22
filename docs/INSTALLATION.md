@@ -1,24 +1,25 @@
 # Installation and verification
 
-## Verified environment
+## Prerequisites
 
-The documented WSL verification environment uses Lean 4.19.0 from Elan cache
-`/mnt/d/elan-linux`.
+Use Linux, macOS, or WSL. The repository pins Lean 4.19.0 in
+`lean-toolchain` and Rust 1.97.1 in `rust-toolchain.toml`.
+
+Install Elan and Rust through their standard installers:
 
 ```bash
-export ELAN_HOME=/mnt/d/elan-linux
-export LAKE_BIN=/mnt/d/elan-linux/toolchains/leanprover--lean4---v4.19.0/bin/lake
-export PATH="$ELAN_HOME/toolchains/leanprover--lean4---v4.19.0/bin:$PATH"
-cd "/mnt/c/Users/HARRY POTTER/zk-verifier-core"
+curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+rustup toolchain install 1.97.1
+rustup target add riscv32i-unknown-none-elf
 ```
 
-The repository currently accepts Rust `1.97.1` in WSL for the tested
-workflow.
+Run commands from the repository root. `verify_all.sh` resolves Lake from
+`LAKE_BIN`, `lake`, or `lake.exe`.
 
 ## Lean build
 
 ```bash
-"$LAKE_BIN" build
+${LAKE_BIN:-lake} build
 bash scripts/check_no_sorry.sh
 bash scripts/check_no_admit.sh
 bash scripts/check_axiom_policy.sh
@@ -53,7 +54,7 @@ or binary-level equivalence.
 ## Full gate
 
 ```bash
-LAKE_BIN="$LAKE_BIN" bash scripts/verify_all.sh
+bash scripts/verify_all.sh
 ```
 
 The script requires Bash, Cargo, the pinned Lake binary or a compatible `lake`
